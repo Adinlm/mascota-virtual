@@ -1,4 +1,41 @@
-const CACHE='serafidraco-dmg-v2';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./stage_1.b64','./stage_2.b64','./stage_3.b64','./stage_4.b64','./stage_5.b64','./stage_6.b64','./stage_7.b64','./stage_8.b64'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
-self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));
+const CACHE_NAME = 'cybernexo-prisma-pwa-v3';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icon.svg',
+  './styles/app.css',
+  './src/main.js',
+  './src/pwa.js',
+  './src/audio/soundscape.js',
+  './src/config/evolutions.js',
+  './src/game/PetScene.js',
+  './src/state/store.js',
+  './src/ui/dashboard.js'
+];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting())
+  );
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
+
+  event.respondWith(
+    caches.match(event.request).then((cached) => {
+      return cached || fetch(event.request);
+    })
+  );
+});
