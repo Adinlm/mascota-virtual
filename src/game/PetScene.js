@@ -55,6 +55,7 @@ export class PetScene extends Phaser.Scene {
     this.pet = this.add.image(width / 2, height * 0.54, `phase-${this.stageIndex + 1}`);
     this.pet.setOrigin(0.5);
     this.pet.setDepth(2);
+    this.pet.setSmooth(true);
     this.drawPet();
   }
 
@@ -62,7 +63,7 @@ export class PetScene extends Phaser.Scene {
     if (!this.pet || this.transitioning) return;
 
     const hover = Math.sin(time / 450) * 7;
-    const pulse = 1 + Math.sin(time / 360) * 0.018;
+    const pulse = 1 + Math.sin(time / 360) * 0.012;
     this.pet.y = this.scale.height * 0.54 + hover;
     this.pet.scaleX = this.pet.baseScale * pulse;
     this.pet.scaleY = this.pet.baseScale / pulse;
@@ -83,11 +84,11 @@ export class PetScene extends Phaser.Scene {
     const config = {
       feed: { y: -18, angle: -3 },
       care: { y: 0, angle: 0 },
-      train: { y: -28, angle: 5 },
-      rest: { y: 10, angle: 0 },
-      boost: { y: -34, angle: -6 },
-      repair: { y: -12, angle: 0 },
-      pulse: { y: -22, angle: 0 }
+      train: { y: -24, angle: 4 },
+      rest: { y: 8, angle: 0 },
+      boost: { y: -28, angle: -5 },
+      repair: { y: -10, angle: 0 },
+      pulse: { y: -18, angle: 0 }
     }[action] ?? { y: -10, angle: 0 };
 
     this.tweens.add({
@@ -137,9 +138,9 @@ export class PetScene extends Phaser.Scene {
       onComplete: () => {
         this.stageIndex = stageIndex;
         this.drawPet();
-        this.pet.setScale(this.pet.baseScale * 1.28);
+        this.pet.setScale(this.pet.baseScale * 1.18);
         this.pet.setAlpha(0);
-        this.pet.angle = -12;
+        this.pet.angle = -10;
         this.tweens.add({
           targets: this.pet,
           scale: this.pet.baseScale,
@@ -176,18 +177,18 @@ export class PetScene extends Phaser.Scene {
     this.aura.clear();
     this.aura.setDepth(1);
     this.aura.fillStyle(primary, 0.12);
-    this.aura.fillCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.42, 180));
+    this.aura.fillCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.34, 148));
     this.aura.lineStyle(2, primary, 0.24);
-    this.aura.strokeCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.48, 212));
+    this.aura.strokeCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.39, 178));
   }
 
   positionPet() {
     if (!this.pet) return;
 
     const { width, height } = this.scale;
-    const target = Math.min(width * 0.5, height * 0.76, 330);
-    const source = Math.max(this.pet.width || 1, this.pet.height || 1);
-    this.pet.baseScale = target / source;
+    const nativeSize = Math.max(this.pet.width || 1, this.pet.height || 1);
+    const target = Math.min(width * 0.36, height * 0.42, nativeSize, 210);
+    this.pet.baseScale = target / nativeSize;
     this.pet.setPosition(width / 2, height * 0.54);
     this.pet.setScale(this.pet.baseScale);
   }
