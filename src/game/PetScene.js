@@ -1,3 +1,4 @@
+import { phaseImages } from '../assets/evolutionImages.js';
 import { EVOLUTIONS } from '../config/evolutions.js';
 
 export class PetScene extends Phaser.Scene {
@@ -10,10 +11,17 @@ export class PetScene extends Phaser.Scene {
     this.transitioning = false;
   }
 
+  preload() {
+    EVOLUTIONS.forEach((evolution, index) => {
+      this.load.image(`phase-${index + 1}`, phaseImages[evolution.imageKey]);
+    });
+  }
+
   create() {
     this.cameras.main.setBackgroundColor('#02050d');
     this.createBackdrop();
     this.createPet();
+    this.scale.on('resize', () => this.positionPet());
     this.game.events.emit('pet-scene-ready', this);
   }
 
@@ -44,18 +52,20 @@ export class PetScene extends Phaser.Scene {
   createPet() {
     const { width, height } = this.scale;
     this.aura = this.add.graphics();
-    this.pet = this.add.graphics();
-    this.pet.setPosition(width / 2, height * 0.58);
+    this.pet = this.add.image(width / 2, height * 0.54, `phase-${this.stageIndex + 1}`);
+    this.pet.setOrigin(0.5);
+    this.pet.setDepth(2);
     this.drawPet();
   }
 
   update(time) {
     if (!this.pet || this.transitioning) return;
+
     const hover = Math.sin(time / 450) * 7;
-    const pulse = 1 + Math.sin(time / 360) * 0.025;
-    this.pet.y = this.scale.height * 0.58 + hover;
-    this.pet.scaleX = pulse;
-    this.pet.scaleY = 1 / pulse;
+    const pulse = 1 + Math.sin(time / 360) * 0.018;
+    this.pet.y = this.scale.height * 0.54 + hover;
+    this.pet.scaleX = this.pet.baseScale * pulse;
+    this.pet.scaleY = this.pet.baseScale / pulse;
 
     this.stars.forEach((star, index) => {
       star.alpha = 0.2 + Math.sin(time / 600 + index) * 0.18;
@@ -63,7 +73,7 @@ export class PetScene extends Phaser.Scene {
   }
 
   setStage(stageIndex) {
-    if (this.stageIndex === stageIndex) return;
+    if (this.stageIndex === stageIndex && this.pet) return;
     this.stageIndex = stageIndex;
     this.drawPet();
   }
@@ -71,22 +81,23 @@ export class PetScene extends Phaser.Scene {
   react(action) {
     if (!this.pet) return;
     const config = {
-      feed: { y: -18, angle: -4 },
+      feed: { y: -18, angle: -3 },
       care: { y: 0, angle: 0 },
-      train: { y: -28, angle: 8 },
+      train: { y: -28, angle: 5 },
       rest: { y: 10, angle: 0 },
-      boost: { y: -34, angle: -9 },
+      boost: { y: -34, angle: -6 },
       repair: { y: -12, angle: 0 },
       pulse: { y: -22, angle: 0 }
     }[action] ?? { y: -10, angle: 0 };
 
     this.tweens.add({
       targets: this.pet,
-      y: this.scale.height * 0.58 + config.y,
+      y: this.scale.height * 0.54 + config.y,
       angle: config.angle,
       duration: 140,
       yoyo: true,
-      ease: 'Sine.easeOut'
+      ease: 'Sine.easeOut',
+      onComplete: () => { this.pet.angle = 0; }
     });
 
     this.emitParticles(action);
@@ -95,12 +106,12 @@ export class PetScene extends Phaser.Scene {
   evolveTo(stageIndex) {
     this.transitioning = true;
     const { width, height } = this.scale;
-    const flash = this.add.circle(width / 2, height * 0.58, 14, 0xffffff, 0.96);
-    const ring = this.add.circle(width / 2, height * 0.58, 32, 0x7cf7ff, 0.46).setStrokeStyle(4, 0x7cf7ff, 0.9);
+    const flash = this.add.circle(width / 2, height * 0.54, 14, 0xffffff, 0.96);
+    const ring = this.add.circle(width / 2, height * 0.54, 32, 0x7cf7ff, 0.46).setStrokeStyle(4, 0x7cf7ff, 0.9);
 
     this.tweens.add({
       targets: flash,
-      scale: 20,
+      scale: 24,
       alpha: 0,
       duration: 1050,
       ease: 'Cubic.easeOut',
@@ -109,7 +120,7 @@ export class PetScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: ring,
-      scale: 7,
+      scale: 8,
       alpha: 0,
       duration: 1100,
       ease: 'Cubic.easeOut',
@@ -118,7 +129,7 @@ export class PetScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: this.pet,
-      scale: 0.2,
+      scale: 0.18,
       alpha: 0,
       angle: 90,
       duration: 500,
@@ -126,12 +137,12 @@ export class PetScene extends Phaser.Scene {
       onComplete: () => {
         this.stageIndex = stageIndex;
         this.drawPet();
-        this.pet.setScale(1.45);
+        this.pet.setScale(this.pet.baseScale * 1.28);
         this.pet.setAlpha(0);
-        this.pet.angle = -16;
+        this.pet.angle = -12;
         this.tweens.add({
           targets: this.pet,
-          scale: 1,
+          scale: this.pet.baseScale,
           alpha: 1,
           angle: 0,
           duration: 650,
@@ -155,69 +166,30 @@ export class PetScene extends Phaser.Scene {
   }
 
   drawPet() {
+    if (!this.pet || !this.aura) return;
+
     const evolution = EVOLUTIONS[this.stageIndex];
     const primary = evolution.palette.primary;
-    const secondary = evolution.palette.secondary;
-    const accent = evolution.palette.accent;
-    const level = this.stageIndex;
+    this.pet.setTexture(`phase-${this.stageIndex + 1}`);
+    this.positionPet();
 
-    this.pet.clear();
     this.aura.clear();
+    this.aura.setDepth(1);
+    this.aura.fillStyle(primary, 0.12);
+    this.aura.fillCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.42, 180));
+    this.aura.lineStyle(2, primary, 0.24);
+    this.aura.strokeCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.48, 212));
+  }
 
-    this.aura.fillStyle(primary, 0.09 + level * 0.012);
-    this.aura.fillCircle(this.scale.width / 2, this.scale.height * 0.58, 108 + level * 12);
-    this.aura.lineStyle(2, primary, 0.14);
-    this.aura.strokeCircle(this.scale.width / 2, this.scale.height * 0.58, 138 + level * 12);
+  positionPet() {
+    if (!this.pet) return;
 
-    this.pet.lineStyle(4, primary, 0.94);
-    this.pet.fillStyle(0x111b2c, 1);
-
-    const bodyW = 92 + level * 13;
-    const bodyH = 78 + level * 11;
-    this.pet.fillEllipse(0, 12, bodyW, bodyH);
-    this.pet.strokeEllipse(0, 12, bodyW, bodyH);
-
-    this.pet.lineStyle(4, secondary, 0.8);
-    this.pet.beginPath();
-    this.pet.moveTo(-bodyW * 0.36, -8);
-    this.pet.lineTo(-bodyW * 0.55, -42 - level * 5);
-    this.pet.moveTo(bodyW * 0.36, -8);
-    this.pet.lineTo(bodyW * 0.55, -42 - level * 5);
-    this.pet.strokePath();
-
-    if (level >= 1) {
-      this.pet.lineStyle(5, primary, 0.75);
-      this.pet.beginPath();
-      this.pet.moveTo(bodyW * 0.42, 18);
-      this.pet.quadraticCurveTo(bodyW * 0.8, -10 - level * 8, bodyW * 1.02, 12 - level * 4);
-      this.pet.strokePath();
-      this.pet.fillStyle(accent, 0.86);
-      this.pet.fillCircle(bodyW * 1.04, 12 - level * 4, 8 + level * 2);
-    }
-
-    if (level >= 3) {
-      this.pet.lineStyle(4, accent, 0.72);
-      this.pet.strokeTriangle(-bodyW * 0.24, 45, 0, 74 + level * 4, bodyW * 0.24, 45);
-    }
-
-    if (level >= 4) {
-      this.pet.lineStyle(3, 0xffffff, 0.42);
-      this.pet.strokeCircle(0, 12, bodyW * 0.62);
-      this.pet.strokeCircle(0, 12, bodyW * 0.78);
-    }
-
-    this.pet.fillStyle(primary, 1);
-    this.pet.fillCircle(-18 - level * 2, 7, 7 + level * 0.7);
-    this.pet.fillCircle(18 + level * 2, 7, 7 + level * 0.7);
-
-    this.pet.lineStyle(3, accent, 0.8);
-    this.pet.lineBetween(-20, 32 + level, 20, 32 + level);
-
-    this.pet.fillStyle(secondary, 0.7);
-    for (let i = 0; i < 3 + level; i += 1) {
-      const angle = (Math.PI * 2 * i) / (3 + level);
-      this.pet.fillCircle(Math.cos(angle) * (bodyW * 0.56), Math.sin(angle) * (bodyH * 0.45) + 12, 3 + level * 0.4);
-    }
+    const { width, height } = this.scale;
+    const target = Math.min(width * 0.5, height * 0.76, 330);
+    const source = Math.max(this.pet.width || 1, this.pet.height || 1);
+    this.pet.baseScale = target / source;
+    this.pet.setPosition(width / 2, height * 0.54);
+    this.pet.setScale(this.pet.baseScale);
   }
 
   emitParticles(action) {
@@ -226,11 +198,11 @@ export class PetScene extends Phaser.Scene {
     const { width, height } = this.scale;
 
     for (let i = 0; i < 14; i += 1) {
-      const particle = this.add.circle(width / 2, height * 0.58, Phaser.Math.Between(2, 5), color, 0.88);
+      const particle = this.add.circle(width / 2, height * 0.54, Phaser.Math.Between(2, 5), color, 0.88).setDepth(3);
       this.tweens.add({
         targets: particle,
-        x: width / 2 + Phaser.Math.Between(-120, 120),
-        y: height * 0.58 + Phaser.Math.Between(-100, 80),
+        x: width / 2 + Phaser.Math.Between(-150, 150),
+        y: height * 0.54 + Phaser.Math.Between(-120, 100),
         alpha: 0,
         scale: 0.2,
         duration: Phaser.Math.Between(480, 920),
