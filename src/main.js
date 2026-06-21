@@ -7,6 +7,7 @@ import { hideFailure, logLine, renderDashboard, showFailure } from './ui/dashboa
 
 let state = loadState();
 let stageIndex = getStageIndex(state.coreData);
+window.__CYBERNEXO_STAGE__ = stageIndex;
 const soundscape = new Soundscape();
 let game;
 let petScene;
@@ -20,13 +21,17 @@ function bootstrap() {
 
   const decay = applyOfflineDecay(state);
   stageIndex = getStageIndex(state.coreData);
+  window.__CYBERNEXO_STAGE__ = stageIndex;
   renderDashboard(state, stageIndex);
+  syncSceneStage();
   if (decay.reason) showFailure(decay.reason);
 
   setInterval(() => {
     const result = applyOfflineDecay(state);
     stageIndex = getStageIndex(state.coreData);
+    window.__CYBERNEXO_STAGE__ = stageIndex;
     renderDashboard(state, stageIndex);
+    syncSceneStage();
     if (result.reason) {
       soundscape.playFailure();
       petScene?.fail();
@@ -57,7 +62,7 @@ function initPhaser() {
 
   game.events.once('pet-scene-ready', (scene) => {
     petScene = scene;
-    petScene.setStage(stageIndex);
+    syncSceneStage();
   });
 }
 
@@ -68,6 +73,7 @@ function bindEvents() {
 
   document.querySelector('#pulse')?.addEventListener('click', async () => {
     await ensureAudio();
+    syncSceneStage();
     soundscape.playPulse();
     petScene?.react('pulse');
     logLine('◌ Pulso emitido. La señal resonó en el campo de entrenamiento.');
@@ -89,15 +95,16 @@ async function handleAction(action) {
   const result = performAction(state, action);
 
   stageIndex = getStageIndex(state.coreData);
+  window.__CYBERNEXO_STAGE__ = stageIndex;
   renderDashboard(state, stageIndex);
 
   if (!result.ok) {
+    syncSceneStage();
     logLine(result.message);
     return;
   }
 
   soundscape.playAction(action);
-  petScene?.react(action);
 
   if (result.evolved && stageIndex > beforeStage) {
     soundscape.setStage(stageIndex);
@@ -105,6 +112,8 @@ async function handleAction(action) {
     petScene?.evolveTo(stageIndex);
     logLine(`✦ Evolución desbloqueada: ${EVOLUTIONS[stageIndex].name}. +${result.gained} datos.`);
   } else {
+    syncSceneStage();
+    petScene?.react(action);
     logLine(`${result.message} +${result.gained} datos.`);
   }
 
@@ -124,12 +133,18 @@ async function ensureAudio() {
   if (button) button.textContent = enabled ? 'Silenciar audio' : 'Activar audio';
 }
 
+function syncSceneStage() {
+  window.__CYBERNEXO_STAGE__ = stageIndex;
+  petScene?.setStage(stageIndex);
+}
+
 function hardReset() {
   state = resetState();
   stageIndex = getStageIndex(state.coreData);
+  window.__CYBERNEXO_STAGE__ = stageIndex;
   hideFailure();
   renderDashboard(state, stageIndex);
   soundscape.setStage(stageIndex);
-  petScene?.setStage(stageIndex);
+  syncSceneStage();
   logLine('Nexo reiniciado. Nueva línea evolutiva preparada.');
 }
