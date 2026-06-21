@@ -1,16 +1,20 @@
 {
   "name": "CyberNexo Prisma",
   "short_name": "CyberNexo",
+  "description": "Mascota virtual evolutiva hecha con Phaser, Tone.js y PWA modular.",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#08111f",
-  "theme_color": "#08111f",
-  "description": "Mascota virtual evolutiva con 6 fases, música gótica PSOne procedural y transición azul de evolución.",
+  "orientation": "portrait-primary",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "categories": ["games", "entertainment"],
   "icons": [
     {
       "src": "./icon.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
   ]
 }
