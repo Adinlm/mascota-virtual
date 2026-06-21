@@ -1,11 +1,11 @@
 {
-  "name": "Serafidraco DMG",
-  "short_name": "Serafidraco",
+  "name": "CyberNexo Prisma",
+  "short_name": "CyberNexo",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#120d08",
-  "theme_color": "#120d08",
-  "description": "Mascota evolutiva con audio estilo Game Boy, música de fondo y evoluciones ocultas.",
+  "background_color": "#08111f",
+  "theme_color": "#08111f",
+  "description": "Mascota virtual evolutiva con 6 fases, música gótica PSOne procedural y transición azul de evolución.",
   "icons": [
     {
       "src": "./icon.svg",
