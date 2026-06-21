@@ -72,9 +72,9 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
 .modal button:hover { transform: translateY(-1px); border-color: rgba(255, 255, 255, 0.72); }
 .ghost-button.danger { border-color: rgba(255, 111, 157, 0.55); }
 
-.hero-card { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 14px; min-height: 144px; padding: 14px; border-radius: 28px; }
-.pet-portrait { width: 120px; aspect-ratio: 1; border-radius: 24px; border: 1px solid var(--line); background: radial-gradient(circle at 50% 40%, rgba(124, 247, 255, 0.2), transparent 55%), #050a13; overflow: hidden; }
-.pet-portrait svg { width: 100%; height: 100%; display: block; }
+.hero-card { display: grid; grid-template-columns: 160px 1fr; align-items: center; gap: 20px; min-height: 196px; padding: 20px; border-radius: 28px; }
+.pet-portrait { width: 160px; aspect-ratio: 1; border-radius: 24px; border: 1px solid var(--line); background: radial-gradient(circle at 50% 40%, rgba(124, 247, 255, 0.2), transparent 55%), #050a13; overflow: hidden; }
+.pet-portrait img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .stage-label { margin: 0 0 3px; font-size: 0.88rem; font-weight: 900; }
 #pet-description { margin-bottom: 0; color: var(--muted); line-height: 1.45; }
 
@@ -84,7 +84,7 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
 .game-card__header { margin-bottom: 12px; }
 .game-card__header h2, .section-heading h2 { margin: 0; }
 .game-root { position: relative; width: 100%; min-height: 300px; border: 1px solid rgba(124, 247, 255, 0.24); border-radius: 22px; overflow: hidden; background: #02050d; }
-.game-root canvas { display: block; width: 100% !important; height: auto !important; image-rendering: pixelated; }
+.game-root canvas { display: block; width: 100% !important; height: auto !important; }
 
 .panel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .metric { border-radius: 20px; padding: 14px; }
@@ -109,8 +109,8 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
 .evolution-list { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
 .evolution-card { min-height: 170px; border: 1px solid var(--line); border-radius: 20px; background: rgba(9, 18, 34, 0.72); padding: 9px; text-align: center; color: var(--muted); }
 .evolution-card.current { color: var(--text); border-color: var(--line-strong); background: rgba(124, 247, 255, 0.14); outline: 2px solid rgba(124, 247, 255, 0.34); }
-.evolution-card.locked svg { filter: grayscale(1) brightness(0.42); opacity: 0.68; }
-.evolution-card svg { width: 100%; aspect-ratio: 1; border-radius: 15px; background: #050a13; }
+.evolution-card.locked img { filter: grayscale(1) brightness(0.42); opacity: 0.68; }
+.evolution-card img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 15px; background: #050a13; display: block; }
 .evolution-card strong { display: block; margin: 7px 0 2px; font-size: 0.88rem; line-height: 1.15; }
 .evolution-card span { font-size: 0.74rem; }
 .modal { position: fixed; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(0, 0, 0, 0.74); z-index: 10; }
@@ -123,6 +123,8 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
   .topbar { flex-direction: column; }
   .topbar__actions { width: 100%; justify-content: stretch; }
   .topbar__actions button { flex: 1; }
+  .hero-card { grid-template-columns: 132px 1fr; min-height: 166px; padding: 14px; }
+  .pet-portrait { width: 132px; }
   .panel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .actions { grid-template-columns: repeat(3, 1fr); }
   .evolution-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -130,8 +132,8 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
 
 @media (max-width: 460px) {
   body { padding-inline: 10px; }
-  .hero-card { grid-template-columns: 94px 1fr; }
-  .pet-portrait { width: 94px; border-radius: 20px; }
+  .hero-card { grid-template-columns: 110px 1fr; }
+  .pet-portrait { width: 110px; border-radius: 20px; }
   .actions { grid-template-columns: repeat(2, 1fr); }
   .evolution-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
