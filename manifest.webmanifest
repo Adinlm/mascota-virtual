@@ -1,0 +1,16 @@
+{
+  "name": "Serafidraco DMG",
+  "short_name": "Serafidraco",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#120d08",
+  "theme_color": "#120d08",
+  "description": "Mascota evolutiva con audio estilo Game Boy, música de fondo y evoluciones ocultas.",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
