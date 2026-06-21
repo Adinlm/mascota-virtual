@@ -1,44 +1,50 @@
 export const EVOLUTIONS = [
   {
-    name: 'Núcleo Semilla',
+    name: 'Huevo Núcleo',
     threshold: 0,
     palette: { primary: 0x7cf7ff, secondary: 0x8b7dff, accent: 0xffffff },
-    description: 'El kernel despierta jugando con datos flotantes.',
+    description: 'El origen sellado de la bestia cibernética.',
+    imageKey: 'phase1',
     motif: [0, 3, 7, 10]
   },
   {
-    name: 'Bytecría',
+    name: 'Cría Cableada',
     threshold: 220,
     palette: { primary: 0x79ffd8, secondary: 0x7cf7ff, accent: 0xffd86b },
-    description: 'Primera forma móvil, curiosa y luminosa.',
+    description: 'Una cría curiosa que juega con paquetes de datos.',
+    imageKey: 'phase2',
     motif: [0, 2, 7, 9]
   },
   {
-    name: 'Lynx de Paquetes',
+    name: 'Cazador de Paquetes',
     threshold: 520,
     palette: { primary: 0xffd86b, secondary: 0x7cf7ff, accent: 0xff8ab1 },
-    description: 'Cazador joven de datos y señales.',
+    description: 'Forma orgullosa, ágil y lista para dominar la red.',
+    imageKey: 'phase3',
     motif: [0, 3, 5, 10]
   },
   {
-    name: 'Protocazador',
+    name: 'Depredador Firewall',
     threshold: 980,
     palette: { primary: 0xff8ab1, secondary: 0x8b7dff, accent: 0x79ffd8 },
-    description: 'Forma ágil optimizada para nodos hostiles.',
+    description: 'Una bestia blindada que salta sobre torres cibernéticas.',
+    imageKey: 'phase4',
     motif: [0, 2, 6, 9]
   },
   {
-    name: 'Centinela Kernel',
+    name: 'Titán Kernel',
     threshold: 2100,
     palette: { primary: 0x8b7dff, secondary: 0x7cf7ff, accent: 0xffffff },
-    description: 'Blindaje noble y control defensivo del campo.',
+    description: 'Coloso biomecánico capaz de disparar un rayo de nexo.',
+    imageKey: 'phase5',
     motif: [0, 5, 7, 11]
   },
   {
-    name: 'Soberano Nexo',
+    name: 'Bestia Divina',
     threshold: 4200,
     palette: { primary: 0xffffff, secondary: 0x7cf7ff, accent: 0xffd86b },
-    description: 'Forma final, dramática e imposible de corromper.',
+    description: 'Forma final, centro de un sistema solar digital.',
+    imageKey: 'phase6',
     motif: [0, 3, 7, 12]
   }
 ];
