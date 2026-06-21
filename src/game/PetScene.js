@@ -18,6 +18,7 @@ export class PetScene extends Phaser.Scene {
   }
 
   create() {
+    this.stageIndex = window.__CYBERNEXO_STAGE__ ?? 0;
     this.cameras.main.setBackgroundColor('#02050d');
     this.createBackdrop();
     this.createPet();
@@ -74,8 +75,8 @@ export class PetScene extends Phaser.Scene {
   }
 
   setStage(stageIndex) {
-    if (this.stageIndex === stageIndex && this.pet) return;
     this.stageIndex = stageIndex;
+    window.__CYBERNEXO_STAGE__ = stageIndex;
     this.drawPet();
   }
 
@@ -106,6 +107,7 @@ export class PetScene extends Phaser.Scene {
 
   evolveTo(stageIndex) {
     this.transitioning = true;
+    window.__CYBERNEXO_STAGE__ = stageIndex;
     const { width, height } = this.scale;
     const flash = this.add.circle(width / 2, height * 0.54, 14, 0xffffff, 0.96);
     const ring = this.add.circle(width / 2, height * 0.54, 32, 0x7cf7ff, 0.46).setStrokeStyle(4, 0x7cf7ff, 0.9);
@@ -187,7 +189,7 @@ export class PetScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
     const nativeSize = Math.max(this.pet.width || 1, this.pet.height || 1);
-    const target = Math.min(width * 0.36, height * 0.42, nativeSize, 210);
+    const target = Math.min(width * 0.5, height * 0.68, nativeSize, 360);
     this.pet.baseScale = target / nativeSize;
     this.pet.setPosition(width / 2, height * 0.54);
     this.pet.setScale(this.pet.baseScale);
