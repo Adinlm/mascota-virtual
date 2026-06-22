@@ -31,6 +31,10 @@ export class PetScene extends Phaser.Scene {
       this.positionPet(false);
       this.startWander();
     });
+
+    window.__CYBERNEXO_PET_SCENE__ = this;
+    window.__CYBERNEXO_ATTACH_SCENE__?.(this);
+    window.dispatchEvent(new CustomEvent('cybernexo-pet-scene-ready', { detail: { scene: this } }));
     this.game.events.emit('pet-scene-ready', this);
   }
 
@@ -47,7 +51,6 @@ export class PetScene extends Phaser.Scene {
       }
 
       const texture = this.textures.createCanvas(pixelKey, PIXEL_TEXTURE_SIZE, PIXEL_TEXTURE_SIZE);
-      const canvas = texture.getSourceImage();
       const ctx = texture.getContext();
       const sourceSize = Math.min(sourceImage.width, sourceImage.height);
       const sx = Math.floor((sourceImage.width - sourceSize) / 2);
@@ -135,8 +138,19 @@ export class PetScene extends Phaser.Scene {
   }
 
   setStage(stageIndex) {
-    this.stageIndex = Phaser.Math.Clamp(stageIndex, 0, EVOLUTIONS.length - 1);
+    const nextStage = Phaser.Math.Clamp(stageIndex, 0, EVOLUTIONS.length - 1);
+    const textureKey = `phase-${nextStage + 1}`;
+    const alreadySynced = this.stageIndex === nextStage && this.pet?.texture?.key === textureKey;
+
+    this.stageIndex = nextStage;
     window.__CYBERNEXO_STAGE__ = this.stageIndex;
+
+    if (alreadySynced) {
+      this.positionPet(false);
+      if (!this.wanderTween && !this.transitioning) this.startWander();
+      return;
+    }
+
     this.drawPet(true);
   }
 
