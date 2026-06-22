@@ -38,6 +38,7 @@ jobs:
           cp icon.svg _site/
           cp -R styles _site/styles
           cp -R src _site/src
+          cp -R assets _site/assets
           touch _site/.nojekyll
 
       - name: Upload Pages artifact
