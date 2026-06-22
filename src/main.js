@@ -4,6 +4,7 @@ import { PetScene } from './game/PetScene.js';
 import { registerServiceWorker } from './pwa.js';
 import { applyOfflineDecay, loadState, performAction, resetState, saveState } from './state/store.js';
 import { hideFailure, logLine, renderDashboard, showFailure } from './ui/dashboard.js';
+import { initTrainingSprite, playEvolutionEffect, pulseTrainingSprite, setTrainingStage } from './ui/trainingSprite.js';
 
 let state = loadState();
 let stageIndex = getStageIndex(state.coreData);
@@ -25,6 +26,7 @@ function bootstrap() {
   stageIndex = getStageIndex(state.coreData);
   window.__CYBERNEXO_STAGE__ = stageIndex;
   renderDashboard(state, stageIndex);
+  initTrainingSprite(stageIndex);
   syncSceneStage();
   if (decay.reason) showFailure(decay.reason);
 
@@ -85,6 +87,7 @@ function bindEvents() {
     await ensureAudio();
     syncSceneStage();
     soundscape.playPulse();
+    pulseTrainingSprite('pulse');
     petScene?.react('pulse');
     logLine('◌ Pulso emitido. La señal resonó en el campo de entrenamiento.');
   });
@@ -123,6 +126,7 @@ async function handleAction(action) {
     logLine(`✦ Evolución desbloqueada: ${EVOLUTIONS[stageIndex].name}. +${result.gained} datos.`);
   } else {
     syncSceneStage();
+    pulseTrainingSprite(action);
     petScene?.react(action);
     logLine(`${result.message} +${result.gained} datos.`);
   }
@@ -145,6 +149,7 @@ async function ensureAudio() {
 
 function syncSceneStage() {
   window.__CYBERNEXO_STAGE__ = stageIndex;
+  setTrainingStage(stageIndex);
   window.dispatchEvent(new CustomEvent('cybernexo-stage-sync', {
     detail: { stageIndex }
   }));
@@ -152,6 +157,8 @@ function syncSceneStage() {
 
 function evolveSceneStage() {
   window.__CYBERNEXO_STAGE__ = stageIndex;
+  setTrainingStage(stageIndex, { evolved: true });
+  playEvolutionEffect();
   window.dispatchEvent(new CustomEvent('cybernexo-stage-evolved', {
     detail: { stageIndex }
   }));
