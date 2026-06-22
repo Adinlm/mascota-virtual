@@ -119,7 +119,7 @@ async function handleAction(action) {
   if (result.evolved && stageIndex > beforeStage) {
     soundscape.setStage(stageIndex);
     soundscape.playEvolution();
-    petScene?.evolveTo(stageIndex);
+    evolveSceneStage();
     logLine(`✦ Evolución desbloqueada: ${EVOLUTIONS[stageIndex].name}. +${result.gained} datos.`);
   } else {
     syncSceneStage();
@@ -145,7 +145,16 @@ async function ensureAudio() {
 
 function syncSceneStage() {
   window.__CYBERNEXO_STAGE__ = stageIndex;
-  petScene?.setStage(stageIndex);
+  window.dispatchEvent(new CustomEvent('cybernexo-stage-sync', {
+    detail: { stageIndex }
+  }));
+}
+
+function evolveSceneStage() {
+  window.__CYBERNEXO_STAGE__ = stageIndex;
+  window.dispatchEvent(new CustomEvent('cybernexo-stage-evolved', {
+    detail: { stageIndex }
+  }));
 }
 
 function hardReset() {
