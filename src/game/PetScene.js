@@ -63,8 +63,8 @@ export class PetScene extends Phaser.Scene {
   update(time) {
     if (!this.pet || this.transitioning) return;
 
-    const hover = Math.sin(time / 450) * 7;
-    const pulse = 1 + Math.sin(time / 360) * 0.012;
+    const hover = Math.sin(time / 450) * 5;
+    const pulse = 1 + Math.sin(time / 360) * 0.008;
     this.pet.y = this.scale.height * 0.54 + hover;
     this.pet.scaleX = this.pet.baseScale * pulse;
     this.pet.scaleY = this.pet.baseScale / pulse;
@@ -75,8 +75,8 @@ export class PetScene extends Phaser.Scene {
   }
 
   setStage(stageIndex) {
-    this.stageIndex = stageIndex;
-    window.__CYBERNEXO_STAGE__ = stageIndex;
+    this.stageIndex = Phaser.Math.Clamp(stageIndex, 0, EVOLUTIONS.length - 1);
+    window.__CYBERNEXO_STAGE__ = this.stageIndex;
     this.drawPet();
   }
 
@@ -92,6 +92,7 @@ export class PetScene extends Phaser.Scene {
       pulse: { y: -18, angle: 0 }
     }[action] ?? { y: -10, angle: 0 };
 
+    this.tweens.killTweensOf(this.pet);
     this.tweens.add({
       targets: this.pet,
       y: this.scale.height * 0.54 + config.y,
@@ -107,52 +108,40 @@ export class PetScene extends Phaser.Scene {
 
   evolveTo(stageIndex) {
     this.transitioning = true;
-    window.__CYBERNEXO_STAGE__ = stageIndex;
+    this.setStage(stageIndex);
+
     const { width, height } = this.scale;
-    const flash = this.add.circle(width / 2, height * 0.54, 14, 0xffffff, 0.96);
-    const ring = this.add.circle(width / 2, height * 0.54, 32, 0x7cf7ff, 0.46).setStrokeStyle(4, 0x7cf7ff, 0.9);
+    const flash = this.add.circle(width / 2, height * 0.54, 14, 0xffffff, 0.86).setDepth(4);
+    const ring = this.add.circle(width / 2, height * 0.54, 32, 0x7cf7ff, 0.28).setStrokeStyle(4, 0x7cf7ff, 0.9).setDepth(3);
 
     this.tweens.add({
       targets: flash,
-      scale: 24,
+      scale: 16,
       alpha: 0,
-      duration: 1050,
+      duration: 850,
       ease: 'Cubic.easeOut',
       onComplete: () => flash.destroy()
     });
 
     this.tweens.add({
       targets: ring,
-      scale: 8,
+      scale: 6,
       alpha: 0,
-      duration: 1100,
+      duration: 900,
       ease: 'Cubic.easeOut',
       onComplete: () => ring.destroy()
     });
 
+    this.pet.setScale(this.pet.baseScale * 0.65);
+    this.pet.setAlpha(0.35);
     this.tweens.add({
       targets: this.pet,
-      scale: 0.18,
-      alpha: 0,
-      angle: 90,
-      duration: 500,
-      ease: 'Back.easeIn',
-      onComplete: () => {
-        this.stageIndex = stageIndex;
-        this.drawPet();
-        this.pet.setScale(this.pet.baseScale * 1.18);
-        this.pet.setAlpha(0);
-        this.pet.angle = -10;
-        this.tweens.add({
-          targets: this.pet,
-          scale: this.pet.baseScale,
-          alpha: 1,
-          angle: 0,
-          duration: 650,
-          ease: 'Back.easeOut',
-          onComplete: () => { this.transitioning = false; }
-        });
-      }
+      scale: this.pet.baseScale,
+      alpha: 1,
+      angle: 0,
+      duration: 560,
+      ease: 'Back.easeOut',
+      onComplete: () => { this.transitioning = false; }
     });
   }
 
@@ -173,15 +162,18 @@ export class PetScene extends Phaser.Scene {
 
     const evolution = EVOLUTIONS[this.stageIndex];
     const primary = evolution.palette.primary;
+    this.tweens.killTweensOf(this.pet);
     this.pet.setTexture(`phase-${this.stageIndex + 1}`);
+    this.pet.setAlpha(1);
+    this.pet.setAngle(0);
     this.positionPet();
 
     this.aura.clear();
     this.aura.setDepth(1);
     this.aura.fillStyle(primary, 0.12);
-    this.aura.fillCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.34, 148));
+    this.aura.fillCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.26, 112));
     this.aura.lineStyle(2, primary, 0.24);
-    this.aura.strokeCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.39, 178));
+    this.aura.strokeCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.31, 138));
   }
 
   positionPet() {
@@ -189,7 +181,7 @@ export class PetScene extends Phaser.Scene {
 
     const { width, height } = this.scale;
     const nativeSize = Math.max(this.pet.width || 1, this.pet.height || 1);
-    const target = Math.min(width * 0.5, height * 0.68, nativeSize, 360);
+    const target = Math.min(width * 0.22, height * 0.34, nativeSize, 180);
     this.pet.baseScale = target / nativeSize;
     this.pet.setPosition(width / 2, height * 0.54);
     this.pet.setScale(this.pet.baseScale);
