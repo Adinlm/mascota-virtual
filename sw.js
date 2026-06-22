@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cybernexo-prisma-pwa-v8';
+const CACHE_NAME = 'cybernexo-prisma-pwa-v9';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,7 +12,13 @@ const APP_SHELL = [
   './src/config/evolutions.js',
   './src/game/PetScene.js',
   './src/state/store.js',
-  './src/ui/dashboard.js'
+  './src/ui/dashboard.js',
+  './assets/evolutions/phase-1.webp',
+  './assets/evolutions/phase-2.webp',
+  './assets/evolutions/phase-3.webp',
+  './assets/evolutions/phase-4.webp',
+  './assets/evolutions/phase-5.webp',
+  './assets/evolutions/phase-6.webp'
 ];
 
 self.addEventListener('install', (event) => {
