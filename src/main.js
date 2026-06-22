@@ -12,6 +12,8 @@ const soundscape = new Soundscape();
 let game;
 let petScene;
 
+window.__CYBERNEXO_ATTACH_SCENE__ = attachPetScene;
+
 bootstrap();
 
 function bootstrap() {
@@ -46,6 +48,10 @@ function initPhaser() {
     return;
   }
 
+  window.addEventListener('cybernexo-pet-scene-ready', (event) => {
+    attachPetScene(event.detail?.scene);
+  });
+
   game = new window.Phaser.Game({
     type: window.Phaser.AUTO,
     parent: 'game-root',
@@ -60,10 +66,14 @@ function initPhaser() {
     scene: [PetScene]
   });
 
-  game.events.once('pet-scene-ready', (scene) => {
-    petScene = scene;
-    syncSceneStage();
-  });
+  game.events.on('pet-scene-ready', attachPetScene);
+  attachPetScene(window.__CYBERNEXO_PET_SCENE__);
+}
+
+function attachPetScene(scene) {
+  if (!scene || petScene === scene) return;
+  petScene = scene;
+  syncSceneStage();
 }
 
 function bindEvents() {
