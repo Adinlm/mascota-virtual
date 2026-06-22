@@ -11,8 +11,11 @@ export class PetScene extends Phaser.Scene {
     this.aura = null;
     this.stars = [];
     this.transitioning = false;
-    this.wanderTween = null;
-    this.idleTween = null;
+    this.wanderTarget = null;
+    this.wanderPaused = false;
+    this.wanderSpeed = 58;
+    this.stageSyncHandler = null;
+    this.stageEvolvedHandler = null;
   }
 
   preload() {
@@ -27,15 +30,31 @@ export class PetScene extends Phaser.Scene {
     this.createPixelTextures();
     this.createBackdrop();
     this.createPet();
+    this.bindStageEvents();
     this.scale.on('resize', () => {
       this.positionPet(false);
-      this.startWander();
+      this.pickWanderTarget();
     });
 
     window.__CYBERNEXO_PET_SCENE__ = this;
     window.__CYBERNEXO_ATTACH_SCENE__?.(this);
     window.dispatchEvent(new CustomEvent('cybernexo-pet-scene-ready', { detail: { scene: this } }));
     this.game.events.emit('pet-scene-ready', this);
+  }
+
+  bindStageEvents() {
+    this.stageSyncHandler = (event) => {
+      const nextStage = event.detail?.stageIndex ?? window.__CYBERNEXO_STAGE__ ?? 0;
+      this.setStage(nextStage);
+    };
+
+    this.stageEvolvedHandler = (event) => {
+      const nextStage = event.detail?.stageIndex ?? window.__CYBERNEXO_STAGE__ ?? 0;
+      this.evolveTo(nextStage);
+    };
+
+    window.addEventListener('cybernexo-stage-sync', this.stageSyncHandler);
+    window.addEventListener('cybernexo-stage-evolved', this.stageEvolvedHandler);
   }
 
   createPixelTextures() {
@@ -125,16 +144,24 @@ export class PetScene extends Phaser.Scene {
     this.startWander();
   }
 
-  update(time) {
-    if (!this.pet || this.transitioning) return;
-
-    const pulse = 1 + Math.sin(time / 360) * 0.025;
-    this.pet.scaleX = this.pet.baseScale * pulse;
-    this.pet.scaleY = this.pet.baseScale / pulse;
+  update(time, delta) {
+    if (!this.pet) return;
 
     this.stars.forEach((star, index) => {
       star.alpha = 0.2 + Math.sin(time / 600 + index) * 0.18;
     });
+
+    if (this.transitioning) {
+      this.renderAura();
+      return;
+    }
+
+    this.updateWander(delta);
+
+    const pulse = 1 + Math.sin(time / 360) * 0.025;
+    this.pet.scaleX = this.pet.baseScale * pulse;
+    this.pet.scaleY = this.pet.baseScale / pulse;
+    this.renderAura();
   }
 
   setStage(stageIndex) {
@@ -147,7 +174,7 @@ export class PetScene extends Phaser.Scene {
 
     if (alreadySynced) {
       this.positionPet(false);
-      if (!this.wanderTween && !this.transitioning) this.startWander();
+      this.startWander();
       return;
     }
 
@@ -167,6 +194,7 @@ export class PetScene extends Phaser.Scene {
     }[action] ?? { y: -10, angle: 0 };
 
     this.stopWander();
+    this.tweens.killTweensOf(this.pet);
     this.tweens.add({
       targets: this.pet,
       y: this.pet.y + config.y,
@@ -184,9 +212,18 @@ export class PetScene extends Phaser.Scene {
   }
 
   evolveTo(stageIndex) {
+    const nextStage = Phaser.Math.Clamp(stageIndex, 0, EVOLUTIONS.length - 1);
+    const textureKey = `phase-${nextStage + 1}`;
+
+    if (this.transitioning) return;
+    if (this.stageIndex === nextStage && this.pet?.texture?.key === textureKey) {
+      this.playEvolutionPulse();
+      return;
+    }
+
     this.transitioning = true;
     this.stopWander();
-    this.stageIndex = Phaser.Math.Clamp(stageIndex, 0, EVOLUTIONS.length - 1);
+    this.stageIndex = nextStage;
     window.__CYBERNEXO_STAGE__ = this.stageIndex;
 
     const { width, height } = this.scale;
@@ -241,6 +278,20 @@ export class PetScene extends Phaser.Scene {
     });
   }
 
+  playEvolutionPulse() {
+    if (!this.pet) return;
+    const primary = EVOLUTIONS[this.stageIndex].palette.primary;
+    const ring = this.add.circle(this.pet.x, this.pet.y, 28, primary, 0.24).setStrokeStyle(3, primary, 0.85).setDepth(4);
+    this.tweens.add({
+      targets: ring,
+      scale: 4,
+      alpha: 0,
+      duration: 620,
+      ease: 'Cubic.easeOut',
+      onComplete: () => ring.destroy()
+    });
+  }
+
   fail() {
     if (!this.pet) return;
     this.stopWander();
@@ -257,22 +308,27 @@ export class PetScene extends Phaser.Scene {
   drawPet(restartWander = true) {
     if (!this.pet || !this.aura) return;
 
-    const evolution = EVOLUTIONS[this.stageIndex];
-    const primary = evolution.palette.primary;
     this.tweens.killTweensOf(this.pet);
     this.pet.setTexture(`phase-${this.stageIndex + 1}`);
     this.pet.setAlpha(1);
     this.pet.setAngle(0);
     this.positionPet(false);
+    this.renderAura();
+
+    if (restartWander && !this.transitioning) this.startWander();
+  }
+
+  renderAura() {
+    if (!this.pet || !this.aura) return;
+    const primary = EVOLUTIONS[this.stageIndex].palette.primary;
+    const radius = Math.min(this.scale.height * 0.18, 86);
 
     this.aura.clear();
     this.aura.setDepth(1);
-    this.aura.fillStyle(primary, 0.12);
-    this.aura.fillCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.26, 112));
-    this.aura.lineStyle(2, primary, 0.24);
-    this.aura.strokeCircle(this.scale.width / 2, this.scale.height * 0.54, Math.min(this.scale.height * 0.31, 138));
-
-    if (restartWander && !this.transitioning) this.startWander();
+    this.aura.fillStyle(primary, 0.1);
+    this.aura.fillCircle(this.pet.x, this.pet.y, radius);
+    this.aura.lineStyle(2, primary, 0.22);
+    this.aura.strokeCircle(this.pet.x, this.pet.y, radius * 1.18);
   }
 
   positionPet(centerIfNeeded = true) {
@@ -300,19 +356,19 @@ export class PetScene extends Phaser.Scene {
 
   getWanderBounds() {
     const { width, height } = this.scale;
-    const margin = Math.max(26, this.pet?.displayWidth ? this.pet.displayWidth * 0.65 : 40);
+    const margin = Math.max(26, this.pet?.displayWidth ? this.pet.displayWidth * 0.75 : 44);
 
     return {
       minX: margin,
       maxX: Math.max(margin, width - margin),
-      minY: Math.max(margin, height * 0.24),
+      minY: Math.max(margin, height * 0.23),
       maxY: Math.max(margin, height * 0.82)
     };
   }
 
-  randomWanderPoint() {
+  pickWanderTarget() {
     const bounds = this.getWanderBounds();
-    return {
+    this.wanderTarget = {
       x: Phaser.Math.Between(Math.floor(bounds.minX), Math.floor(bounds.maxX)),
       y: Phaser.Math.Between(Math.floor(bounds.minY), Math.floor(bounds.maxY))
     };
@@ -320,34 +376,34 @@ export class PetScene extends Phaser.Scene {
 
   startWander() {
     if (!this.pet || this.transitioning) return;
-    this.stopWander();
+    this.wanderPaused = false;
     this.positionPet(false);
-
-    const move = () => {
-      if (!this.pet || this.transitioning) return;
-      const next = this.randomWanderPoint();
-      const duration = Phaser.Math.Between(1600, 3000);
-
-      this.wanderTween = this.tweens.add({
-        targets: this.pet,
-        x: next.x,
-        y: next.y,
-        angle: Phaser.Math.Between(-4, 4),
-        duration,
-        ease: 'Sine.easeInOut',
-        onComplete: move
-      });
-    };
-
-    move();
+    if (!this.wanderTarget) this.pickWanderTarget();
   }
 
   stopWander() {
-    if (this.wanderTween) {
-      this.wanderTween.stop();
-      this.wanderTween = null;
+    this.wanderPaused = true;
+    this.tweens.killTweensOf(this.pet);
+  }
+
+  updateWander(delta) {
+    if (!this.pet || this.wanderPaused) return;
+    if (!this.wanderTarget) this.pickWanderTarget();
+
+    const dx = this.wanderTarget.x - this.pet.x;
+    const dy = this.wanderTarget.y - this.pet.y;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance < 5) {
+      this.pickWanderTarget();
+      return;
     }
-    if (this.pet) this.tweens.killTweensOf(this.pet);
+
+    const step = Math.min(distance, this.wanderSpeed * (delta / 1000));
+    this.pet.x += (dx / distance) * step;
+    this.pet.y += (dy / distance) * step;
+
+    if (Math.abs(dx) > 1) this.pet.setFlipX(dx < 0);
   }
 
   emitParticles(action) {
