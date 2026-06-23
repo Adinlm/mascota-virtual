@@ -1,5 +1,6 @@
 import { phaseImages } from '../assets/evolutionImages.js';
 import { phase1TrainingFrames } from '../assets/phase1TrainingFrames.js';
+import { phase2TrainingFrames } from '../assets/phase2TrainingFrames.js';
 import { EVOLUTIONS } from '../config/evolutions.js';
 
 let root;
@@ -25,11 +26,12 @@ let spriteFrameIndex = 0;
 let nextSpriteFrameAt = 0;
 let solidPhase1Frames = null;
 let solidPhase1Promise = null;
+let fallbackLocked = false;
 
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
-const STAGE_WITH_COMBAT_SPRITES = 1;
-const SPRITE_FRAME_INTERVAL = 150;
+const COMBAT_STAGE_INDEX = 2;
+const SPRITE_FRAME_INTERVAL = 120;
 const FILL_COLOR = [224, 235, 248, 255];
 
 const ACTION_DURATIONS = {
@@ -60,6 +62,7 @@ export function initTrainingSprite(initialStageIndex = 0) {
   frontLayer = overlay.querySelector('.training-layer--front');
   afterimages = [...overlay.querySelectorAll('.training-afterimage')];
   dummies = [...overlay.querySelectorAll('.training-dummy')];
+  image.onerror = handleSpriteError;
 
   if (!resizeObserver) {
     resizeObserver = new ResizeObserver(() => {
@@ -86,6 +89,7 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   const shouldAnimate = options.evolved || options.forceEvolution;
   const sourceChanged = currentSrc !== nextSrc || activeSpriteFrames !== frameSet;
 
+  fallbackLocked = false;
   activeSpriteFrames = frameSet;
   spriteFrameIndex = 0;
   nextSpriteFrameAt = performance.now() + SPRITE_FRAME_INTERVAL;
@@ -121,14 +125,14 @@ export function pulseTrainingSprite(action = 'pulse') {
   if (!unit) return;
   unit.classList.remove('training-react');
   unit.dataset.action = action;
-  unit.dataset.motion = action === 'repair' ? 'focus' : 'strike';
+  unit.dataset.motion = action === 'repair' ? 'focus' : stageIndex >= COMBAT_STAGE_INDEX ? 'strike' : 'dash';
   activeMotion = unit.dataset.motion;
   actionUntil = performance.now() + 430;
 
   void unit.offsetWidth;
   unit.classList.add('training-react');
   spawnParticles(action === 'repair' ? 0x79ffd8 : getStageColor());
-  spawnActionEffect(action === 'repair' ? 'focus' : 'strike');
+  spawnActionEffect(action === 'repair' ? 'focus' : activeMotion);
 }
 
 export function playEvolutionEffect() {
@@ -151,10 +155,17 @@ export function playEvolutionEffect() {
 }
 
 function getTrainingFramesForStage(nextStage) {
-  if (nextStage !== 0) return null;
-  if (solidPhase1Frames) return solidPhase1Frames;
-  prepareSolidPhase1Frames();
-  return phase1TrainingFrames;
+  if (nextStage === 0) {
+    if (solidPhase1Frames) return solidPhase1Frames;
+    prepareSolidPhase1Frames();
+    return phase1TrainingFrames;
+  }
+
+  if (nextStage === 1) {
+    return phase2TrainingFrames;
+  }
+
+  return null;
 }
 
 function prepareSolidPhase1Frames() {
@@ -319,6 +330,19 @@ function setSpriteFrame(src) {
   });
 }
 
+function handleSpriteError() {
+  if (fallbackLocked) return;
+
+  fallbackLocked = true;
+  const fallbackSrc = phaseImages[EVOLUTIONS[stageIndex]?.imageKey];
+  if (!fallbackSrc || currentSrc === fallbackSrc) return;
+
+  console.warn('No se encontraron los sprites de entrenamiento. Usando imagen estática de la fase.', currentSrc);
+  activeSpriteFrames = null;
+  unit.dataset.spriteMode = 'static';
+  setSpriteFrame(fallbackSrc);
+}
+
 function preloadSpriteFrames(frameSet) {
   if (!frameSet) return;
   frameSet.forEach((src) => {
@@ -341,15 +365,15 @@ function updateMovement(deltaSeconds, now) {
     return;
   }
 
-  const motionSpeed = activeMotion === 'dash' ? 2.2 : activeMotion === 'strike' ? 0.45 : 1;
+  const motionSpeed = activeMotion === 'dash' ? 2.05 : activeMotion === 'strike' ? 0.45 : 1;
   const stageSpeed = SPEED + stageIndex * 7;
   const step = Math.min(distance, stageSpeed * motionSpeed * deltaSeconds);
   position.x += (dx / distance) * step;
   position.y += (dy / distance) * step;
   velocityFlip = dx < 0 ? -1 : 1;
 
-  const bob = Math.sin(now / 340) * (stageIndex >= STAGE_WITH_COMBAT_SPRITES ? 6 : 4);
-  const tilt = Math.sin(now / 520) * (stageIndex >= STAGE_WITH_COMBAT_SPRITES ? 3.4 : 2.2);
+  const bob = Math.sin(now / 340) * (stageIndex >= COMBAT_STAGE_INDEX ? 6 : 4);
+  const tilt = Math.sin(now / 520) * (stageIndex >= COMBAT_STAGE_INDEX ? 3.4 : 2.2);
   const strikeNudge = activeMotion === 'strike' || activeMotion === 'combo'
     ? Math.sin(now / 58) * 5
     : 0;
@@ -379,8 +403,8 @@ function updateAmbientAction(now) {
 }
 
 function pickMotion() {
-  if (stageIndex < STAGE_WITH_COMBAT_SPRITES) {
-    return Math.random() < 0.72 ? 'roam' : 'focus';
+  if (stageIndex < COMBAT_STAGE_INDEX) {
+    return Math.random() < 0.68 ? 'roam' : Math.random() < 0.55 ? 'dash' : 'focus';
   }
 
   const motions = ['dash', 'strike', 'guard', 'combo', 'uppercut', 'focus'];
@@ -395,8 +419,8 @@ function spawnActionEffect(action) {
   if (!overlay || !unit) return;
 
   if (action === 'dash') {
-    pickTarget({ preferDummy: true });
-    spawnSpeedLines(8);
+    pickTarget({ preferDummy: stageIndex >= COMBAT_STAGE_INDEX });
+    spawnSpeedLines(stageIndex >= COMBAT_STAGE_INDEX ? 8 : 4);
     return;
   }
 
@@ -436,7 +460,7 @@ function clampPosition() {
 
 function pickTarget(options = {}) {
   const bounds = getBounds();
-  const dummyTarget = options.preferDummy || (stageIndex >= STAGE_WITH_COMBAT_SPRITES && Math.random() < 0.52);
+  const dummyTarget = options.preferDummy || (stageIndex >= COMBAT_STAGE_INDEX && Math.random() < 0.52);
 
   if (dummyTarget) {
     const point = getRandomDummyCenter();
