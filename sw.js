@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cybernexo-prisma-pwa-v21';
+const CACHE_NAME = 'cybernexo-prisma-pwa-v22';
 const APP_SHELL = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const APP_SHELL = [
   './src/pwa.js',
   './src/assets/evolutionImages.js',
   './src/assets/phase1TrainingFrames.js',
+  './src/assets/phase2TrainingFrames.js',
   './src/audio/soundscape.js',
   './src/config/evolutions.js',
   './src/game/PetScene.js',
