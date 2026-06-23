@@ -85,6 +85,91 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
 .game-card__header h2, .section-heading h2 { margin: 0; }
 .game-root { position: relative; width: 100%; min-height: 300px; border: 1px solid rgba(124, 247, 255, 0.24); border-radius: 22px; overflow: hidden; background: #02050d; }
 .game-root canvas { display: block; width: 100% !important; height: auto !important; }
+.training-overlay { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.training-pet-unit {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: clamp(76px, 12vw, 122px);
+  aspect-ratio: 1;
+  transform: translate3d(50%, 50%, 0);
+  transform-origin: center;
+  will-change: transform;
+}
+.training-pet-glow {
+  position: absolute;
+  inset: 8%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(124, 247, 255, 0.26), rgba(124, 247, 255, 0.04) 55%, transparent 70%);
+  filter: blur(4px);
+  transform: scale(1.15);
+}
+.training-pet-img {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  border-radius: 9px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  filter: contrast(1.18) saturate(1.16) drop-shadow(0 0 10px rgba(124, 247, 255, 0.44));
+  animation: training-idle 920ms steps(2, end) infinite;
+  user-select: none;
+}
+.training-pet-unit.training-react .training-pet-img {
+  animation: training-react 260ms steps(2, end), training-idle 920ms steps(2, end) 260ms infinite;
+}
+.training-pet-unit.training-evolving .training-pet-img {
+  animation: training-evolve 760ms cubic-bezier(.2, .9, .24, 1.2), training-idle 920ms steps(2, end) 760ms infinite;
+}
+.training-evolution-ring,
+.training-particle {
+  position: absolute;
+  pointer-events: none;
+  z-index: 3;
+}
+.training-evolution-ring {
+  width: 42px;
+  height: 42px;
+  margin: -21px 0 0 -21px;
+  border: 3px solid rgba(124, 247, 255, 0.86);
+  border-radius: 999px;
+  box-shadow: 0 0 18px rgba(124, 247, 255, 0.64);
+  animation: training-ring 780ms ease-out forwards;
+}
+.training-particle {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 999px;
+  background: var(--particle-color, var(--cyan));
+  box-shadow: 0 0 10px var(--particle-color, var(--cyan));
+  animation: training-particle 720ms ease-out forwards;
+}
+@keyframes training-idle {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -4px; }
+}
+@keyframes training-react {
+  0% { scale: 1; rotate: 0deg; }
+  50% { scale: 1.18; rotate: -5deg; }
+  100% { scale: 1; rotate: 0deg; }
+}
+@keyframes training-evolve {
+  0% { opacity: 0.25; scale: 0.45; rotate: -18deg; filter: brightness(2) contrast(1.4); }
+  45% { opacity: 1; scale: 1.38; rotate: 8deg; filter: brightness(2.4) contrast(1.5); }
+  100% { opacity: 1; scale: 1; rotate: 0deg; filter: contrast(1.18) saturate(1.16) drop-shadow(0 0 10px rgba(124, 247, 255, 0.44)); }
+}
+@keyframes training-ring {
+  from { opacity: 0.9; scale: 0.5; }
+  to { opacity: 0; scale: 7; }
+}
+@keyframes training-particle {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(var(--dx), var(--dy), 0) scale(0.2); }
+}
 
 .panel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .metric { border-radius: 20px; padding: 14px; }
