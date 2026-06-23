@@ -1,5 +1,5 @@
 export const phaseImages = {
-  phase1: './assets/evolutions/training/phase-1-training-animated.svg',
+  phase1: './assets/evolutions/phase-1.webp',
   phase2: './assets/evolutions/phase-2.webp',
   phase3: './assets/evolutions/phase-3.webp',
   phase4: './assets/evolutions/phase-4.webp',
