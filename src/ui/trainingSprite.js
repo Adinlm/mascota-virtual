@@ -1,4 +1,5 @@
 import { phaseImages } from '../assets/evolutionImages.js';
+import { phase1TrainingFrames } from '../assets/phase1TrainingFrames.js';
 import { EVOLUTIONS } from '../config/evolutions.js';
 
 let root;
@@ -20,10 +21,14 @@ let currentSrc = '';
 let activeMotion = 'roam';
 let actionUntil = 0;
 let nextActionAt = 0;
+let activeSpriteFrames = null;
+let spriteFrameIndex = 0;
+let nextSpriteFrameAt = 0;
 
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
 const STAGE_WITH_COMBAT_SPRITES = 1;
+const SPRITE_FRAME_INTERVAL = 150;
 
 const ACTION_DURATIONS = {
   roam: 520,
@@ -75,26 +80,28 @@ export function setTrainingStage(nextStageIndex, options = {}) {
 
   const nextStage = normalizeStage(nextStageIndex);
   const evolution = EVOLUTIONS[nextStage];
-  const nextSrc = phaseImages[evolution.imageKey];
+  const frameSet = nextStage === 0 ? phase1TrainingFrames : null;
+  const nextSrc = frameSet?.[0] ?? phaseImages[evolution.imageKey];
   const shouldAnimate = options.evolved || options.forceEvolution;
-  const sourceChanged = currentSrc !== nextSrc;
+  const sourceChanged = currentSrc !== nextSrc || activeSpriteFrames !== frameSet;
+
+  activeSpriteFrames = frameSet;
+  spriteFrameIndex = 0;
+  nextSpriteFrameAt = performance.now() + SPRITE_FRAME_INTERVAL;
 
   stageIndex = nextStage;
   const phaseNumber = stageIndex + 1;
   root.dataset.trainingStage = String(phaseNumber);
   overlay.dataset.trainingStage = String(phaseNumber);
   unit.dataset.stage = String(phaseNumber);
+  unit.dataset.spriteMode = frameSet ? 'frames' : 'static';
   unit.style.setProperty('--stage-color', getStageColorCss());
   unit.style.setProperty('--training-intensity', String(0.75 + stageIndex * 0.12));
 
   if (sourceChanged || options.force) {
-    currentSrc = nextSrc;
-    image.src = nextSrc;
     image.alt = evolution.name;
-    unit.style.setProperty('--training-sprite-image', `url("${nextSrc}")`);
-    afterimages.forEach((ghost) => {
-      ghost.style.backgroundImage = `url("${nextSrc}")`;
-    });
+    setSpriteFrame(nextSrc);
+    preloadSpriteFrames(frameSet);
   }
 
   clampPosition();
@@ -157,7 +164,7 @@ function ensureOverlayStructure() {
       <span class="training-dummy training-dummy--center"></span>
       <span class="training-dummy training-dummy--right"></span>
     </div>
-    <div class="training-pet-unit" aria-hidden="true" data-motion="roam">
+    <div class="training-pet-unit" aria-hidden="true" data-motion="roam" data-sprite-mode="static">
       <div class="training-pet-shadow"></div>
       <div class="training-pet-glow"></div>
       <span class="training-afterimage training-afterimage--one"></span>
@@ -179,8 +186,34 @@ function startLoop() {
 function loop(now) {
   const delta = Math.min(48, now - lastFrame);
   lastFrame = now;
+  updateFrameAnimation(now);
   updateMovement(delta / 1000, now);
   rafId = requestAnimationFrame(loop);
+}
+
+function updateFrameAnimation(now) {
+  if (!activeSpriteFrames || activeSpriteFrames.length < 2 || now < nextSpriteFrameAt) return;
+
+  spriteFrameIndex = (spriteFrameIndex + 1) % activeSpriteFrames.length;
+  setSpriteFrame(activeSpriteFrames[spriteFrameIndex]);
+  nextSpriteFrameAt = now + SPRITE_FRAME_INTERVAL;
+}
+
+function setSpriteFrame(src) {
+  currentSrc = src;
+  image.src = src;
+  unit.style.setProperty('--training-sprite-image', `url("${src}")`);
+  afterimages.forEach((ghost) => {
+    ghost.style.backgroundImage = `url("${src}")`;
+  });
+}
+
+function preloadSpriteFrames(frameSet) {
+  if (!frameSet) return;
+  frameSet.forEach((src) => {
+    const preloader = new Image();
+    preloader.src = src;
+  });
 }
 
 function updateMovement(deltaSeconds, now) {
