@@ -22,9 +22,12 @@ let activeMotion = 'roam';
 let actionUntil = 0;
 let nextActionAt = 0;
 let activeSpriteFrames = null;
+let activeFrameKey = '';
+let activeFrameToken = 0;
 let spriteFrameIndex = 0;
 let nextSpriteFrameAt = 0;
 
+const solidFrameCache = new Map();
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
 const STAGE_WITH_COMBAT_SPRITES = 1;
@@ -81,10 +84,14 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   const nextStage = normalizeStage(nextStageIndex);
   const evolution = EVOLUTIONS[nextStage];
   const frameSet = nextStage === 0 ? phase1TrainingFrames : null;
+  const frameKey = frameSet?.join('|') ?? '';
   const nextSrc = frameSet?.[0] ?? phaseImages[evolution.imageKey];
   const shouldAnimate = options.evolved || options.forceEvolution;
-  const sourceChanged = currentSrc !== nextSrc || activeSpriteFrames !== frameSet;
+  const sourceChanged = currentSrc !== nextSrc || activeFrameKey !== frameKey;
 
+  activeFrameToken += 1;
+  const frameToken = activeFrameToken;
+  activeFrameKey = frameKey;
   activeSpriteFrames = frameSet;
   spriteFrameIndex = 0;
   nextSpriteFrameAt = performance.now() + SPRITE_FRAME_INTERVAL;
@@ -101,7 +108,7 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   if (sourceChanged || options.force) {
     image.alt = evolution.name;
     setSpriteFrame(nextSrc);
-    preloadSpriteFrames(frameSet);
+    prepareSolidFrameSet(frameSet, frameToken);
   }
 
   clampPosition();
@@ -208,12 +215,165 @@ function setSpriteFrame(src) {
   });
 }
 
-function preloadSpriteFrames(frameSet) {
+function prepareSolidFrameSet(frameSet, frameToken) {
   if (!frameSet) return;
-  frameSet.forEach((src) => {
-    const preloader = new Image();
-    preloader.src = src;
+
+  Promise.all(frameSet.map((src) => solidifyTransparentHoles(src)))
+    .then((solidFrames) => {
+      const stillOnPhaseOne = stageIndex === 0 && activeFrameToken === frameToken;
+      if (!stillOnPhaseOne) return;
+
+      activeSpriteFrames = solidFrames;
+      spriteFrameIndex = 0;
+      nextSpriteFrameAt = performance.now() + SPRITE_FRAME_INTERVAL;
+      setSpriteFrame(solidFrames[0]);
+    })
+    .catch(() => {
+      // If the browser blocks canvas processing for any reason, keep the original sprites.
+    });
+}
+
+function solidifyTransparentHoles(src) {
+  if (solidFrameCache.has(src)) return solidFrameCache.get(src);
+
+  const promise = loadImage(src)
+    .then((loadedImage) => buildSolidSpriteDataUrl(loadedImage))
+    .catch(() => src);
+
+  solidFrameCache.set(src, promise);
+  return promise;
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const sprite = new Image();
+    sprite.decoding = 'async';
+    sprite.onload = () => resolve(sprite);
+    sprite.onerror = reject;
+    sprite.src = src;
   });
+}
+
+function buildSolidSpriteDataUrl(sourceImage) {
+  const canvas = document.createElement('canvas');
+  const width = sourceImage.naturalWidth || sourceImage.width;
+  const height = sourceImage.naturalHeight || sourceImage.height;
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(sourceImage, 0, 0, width, height);
+
+  const imageData = context.getImageData(0, 0, width, height);
+  const { data } = imageData;
+  const outsideTransparent = findBorderConnectedTransparency(data, width, height);
+
+  for (let pixel = 0; pixel < width * height; pixel += 1) {
+    const alphaIndex = pixel * 4 + 3;
+    const alpha = data[alphaIndex];
+
+    if (alpha >= 18) continue;
+    if (outsideTransparent[pixel] && !isInsideEggBody(pixel, width, height)) continue;
+
+    const fill = sampleNeighborColor(data, pixel, width, height);
+    data[pixel * 4] = fill.r;
+    data[pixel * 4 + 1] = fill.g;
+    data[pixel * 4 + 2] = fill.b;
+    data[alphaIndex] = 255;
+  }
+
+  context.putImageData(imageData, 0, 0);
+  return canvas.toDataURL('image/webp', 0.92);
+}
+
+function findBorderConnectedTransparency(data, width, height) {
+  const outside = new Uint8Array(width * height);
+  const stack = [];
+
+  for (let x = 0; x < width; x += 1) {
+    pushTransparentPixel(stack, data, x, width, height);
+    pushTransparentPixel(stack, data, (height - 1) * width + x, width, height);
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    pushTransparentPixel(stack, data, y * width, width, height);
+    pushTransparentPixel(stack, data, y * width + width - 1, width, height);
+  }
+
+  while (stack.length) {
+    const pixel = stack.pop();
+    if (outside[pixel]) continue;
+    outside[pixel] = 1;
+
+    const x = pixel % width;
+    const y = Math.floor(pixel / width);
+    const neighbors = [
+      y > 0 ? pixel - width : -1,
+      y < height - 1 ? pixel + width : -1,
+      x > 0 ? pixel - 1 : -1,
+      x < width - 1 ? pixel + 1 : -1
+    ];
+
+    neighbors.forEach((neighbor) => pushTransparentPixel(stack, data, neighbor, width, height, outside));
+  }
+
+  return outside;
+}
+
+function pushTransparentPixel(stack, data, pixel, width, height, visited = null) {
+  if (pixel < 0 || pixel >= width * height) return;
+  if (visited?.[pixel]) return;
+  if (data[pixel * 4 + 3] >= 18) return;
+  stack.push(pixel);
+}
+
+function isInsideEggBody(pixel, width, height) {
+  const x = pixel % width;
+  const y = Math.floor(pixel / width);
+  const normalizedX = (x - width * 0.5) / (width * 0.43);
+  const normalizedY = (y - height * 0.52) / (height * 0.43);
+
+  return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
+}
+
+function sampleNeighborColor(data, pixel, width, height) {
+  const own = {
+    r: data[pixel * 4],
+    g: data[pixel * 4 + 1],
+    b: data[pixel * 4 + 2]
+  };
+
+  if (own.r + own.g + own.b > 24) return own;
+
+  const x = pixel % width;
+  const y = Math.floor(pixel / width);
+
+  for (let radius = 1; radius <= 6; radius += 1) {
+    const samples = [];
+
+    for (let sampleY = Math.max(0, y - radius); sampleY <= Math.min(height - 1, y + radius); sampleY += 1) {
+      for (let sampleX = Math.max(0, x - radius); sampleX <= Math.min(width - 1, x + radius); sampleX += 1) {
+        const samplePixel = sampleY * width + sampleX;
+        if (data[samplePixel * 4 + 3] < 18) continue;
+
+        samples.push({
+          r: data[samplePixel * 4],
+          g: data[samplePixel * 4 + 1],
+          b: data[samplePixel * 4 + 2]
+        });
+      }
+    }
+
+    if (samples.length) {
+      return samples.reduce((accumulator, sample) => ({
+        r: accumulator.r + sample.r / samples.length,
+        g: accumulator.g + sample.g / samples.length,
+        b: accumulator.b + sample.b / samples.length
+      }), { r: 0, g: 0, b: 0 });
+    }
+  }
+
+  return { r: 214, g: 224, b: 238 };
 }
 
 function updateMovement(deltaSeconds, now) {
