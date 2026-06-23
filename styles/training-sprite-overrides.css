@@ -1,0 +1,21 @@
+.game-root[data-training-stage="1"] .training-dummy {
+  opacity: 0;
+}
+
+.game-root[data-training-stage="1"] .training-track {
+  opacity: 0.24;
+}
+
+.game-root[data-training-stage="1"] .training-afterimage {
+  display: none;
+}
+
+.game-root[data-training-stage="1"] .training-pet-unit {
+  width: clamp(92px, 15vw, 148px);
+}
+
+.game-root[data-training-stage="1"] .training-pet-img {
+  border-radius: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(0, 244, 255, 0.58));
+}
