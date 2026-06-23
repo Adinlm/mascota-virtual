@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320">
+  <defs>
+    <radialGradient id="shell" cx="40%" cy="22%" r="82%">
+      <stop offset="0" stop-color="#fff"/><stop offset=".34" stop-color="#d9ddeb"/><stop offset=".72" stop-color="#55617d"/><stop offset="1" stop-color="#101d34"/>
+    </radialGradient>
+    <filter id="glow" x="-45%" y="-45%" width="190%" height="190%"><feGaussianBlur stdDeviation="5" result="b"/><feColorMatrix in="b" type="matrix" values="0 0 0 0 0 0 0 0 0 .92 0 0 0 0 1 0 0 0 .8 0" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <clipPath id="eggClip"><path d="M128 26C72 26 39 91 39 177c0 77 40 116 89 116s89-39 89-116C217 91 184 26 128 26Z"/></clipPath>
+    <symbol id="egg" viewBox="0 0 256 320">
+      <ellipse cx="128" cy="296" rx="54" ry="9" fill="#00eaff" opacity=".35" filter="url(#glow)"/>
+      <path d="M128 26C72 26 39 91 39 177c0 77 40 116 89 116s89-39 89-116C217 91 184 26 128 26Z" fill="url(#shell)" stroke="#041020" stroke-width="4"/>
+      <g clip-path="url(#eggClip)">
+        <path d="M26 211c50 12 61 57 102 81c-48 0-85-38-89-103Z" fill="#06182f" opacity=".76"/>
+        <path d="M196 58c23 47 28 114 12 164c-12-47-29-126-57-186Z" fill="#13284f" opacity=".55"/>
+        <path d="M76 38l38-10l22 46l-27 38l-50-12Z" fill="#f6bc16" stroke="#10182a" stroke-width="3"/>
+        <path d="M136 32l41 18l13 44l-31-3l-33-29Z" fill="#ffca24" stroke="#10182a" stroke-width="3" opacity=".92"/>
+        <path d="M178 122l43 15l-10 35l-42-12Z" fill="#eaa80d" stroke="#10182a" stroke-width="3"/>
+        <path d="M67 192l40 10l-8 44l-45-9Z" fill="#101d35" stroke="#182b48" stroke-width="3" opacity=".72"/>
+        <path d="M163 230l51-12l4 48l-41 18Z" fill="#07152d" stroke="#172847" stroke-width="3" opacity=".72"/>
+        <g stroke="#101827" stroke-width="2" fill="none" opacity=".76"><path d="M72 44l24 52l-21 51l28 27l-5 73"/><path d="M132 29l-6 34l32 28l19 32l-8 38l-7 70"/><path d="M211 137l-36-13l-34 18l-38 32l-44-9"/><path d="M108 245l20 47l35-62l28-34l20-24"/></g>
+        <g filter="url(#glow)" stroke="#00f4ff" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M128 188l-25-14l38-32l35-19l35 14" stroke-width="6"/><path d="M128 188l-20 57l20 47" stroke-width="7"/><path d="M128 188l-42 18l-46-9" stroke-width="5" opacity=".85"/><path d="M128 188l31-97l-33-28l-48-18" stroke-width="5" opacity=".82"/></g>
+        <g fill="#00f4ff" filter="url(#glow)"><circle cx="128" cy="188" r="18"/><circle cx="128" cy="188" r="9" fill="#fff"/><circle cx="177" cy="123" r="6" opacity=".75"/><circle cx="89" cy="151" r="5" opacity=".58"/></g>
+      </g>
+      <path d="M128 26C72 26 39 91 39 177c0 77 40 116 89 116s89-39 89-116C217 91 184 26 128 26Z" fill="none" stroke="#031021" stroke-width="4"/>
+      <path d="M71 59c27-28 66-29 95-17" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" opacity=".23"/>
+    </symbol>
+  </defs>
+  <use href="#egg" x="0" y="0"/>
+  <use href="#egg" x="256" y="-4" transform="rotate(-1 384 160)"/>
+  <use href="#egg" x="512" y="-8" transform="rotate(1.2 640 160)"/>
+  <use href="#egg" x="768" y="-5" transform="rotate(1.8 896 160)"/>
+  <use href="#egg" x="1024" y="-2" transform="rotate(-.7 1152 160)"/>
+</svg>
