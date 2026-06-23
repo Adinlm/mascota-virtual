@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cybernexo-prisma-pwa-v20';
+const CACHE_NAME = 'cybernexo-prisma-pwa-v21';
 const APP_SHELL = [
   './',
   './index.html',
