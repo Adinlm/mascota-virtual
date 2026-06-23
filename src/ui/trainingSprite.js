@@ -4,7 +4,6 @@ import { EVOLUTIONS } from '../config/evolutions.js';
 
 let root;
 let overlay;
-let backLayer;
 let frontLayer;
 let unit;
 let image;
@@ -22,16 +21,16 @@ let activeMotion = 'roam';
 let actionUntil = 0;
 let nextActionAt = 0;
 let activeSpriteFrames = null;
-let activeFrameKey = '';
-let activeFrameToken = 0;
 let spriteFrameIndex = 0;
 let nextSpriteFrameAt = 0;
+let solidPhase1Frames = null;
+let solidPhase1Promise = null;
 
-const solidFrameCache = new Map();
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
 const STAGE_WITH_COMBAT_SPRITES = 1;
 const SPRITE_FRAME_INTERVAL = 150;
+const FILL_COLOR = [224, 235, 248, 255];
 
 const ACTION_DURATIONS = {
   roam: 520,
@@ -58,7 +57,6 @@ export function initTrainingSprite(initialStageIndex = 0) {
 
   unit = overlay.querySelector('.training-pet-unit');
   image = overlay.querySelector('.training-pet-img');
-  backLayer = overlay.querySelector('.training-layer--back');
   frontLayer = overlay.querySelector('.training-layer--front');
   afterimages = [...overlay.querySelectorAll('.training-afterimage')];
   dummies = [...overlay.querySelectorAll('.training-dummy')];
@@ -83,15 +81,11 @@ export function setTrainingStage(nextStageIndex, options = {}) {
 
   const nextStage = normalizeStage(nextStageIndex);
   const evolution = EVOLUTIONS[nextStage];
-  const frameSet = nextStage === 0 ? phase1TrainingFrames : null;
-  const frameKey = frameSet?.join('|') ?? '';
+  const frameSet = getTrainingFramesForStage(nextStage);
   const nextSrc = frameSet?.[0] ?? phaseImages[evolution.imageKey];
   const shouldAnimate = options.evolved || options.forceEvolution;
-  const sourceChanged = currentSrc !== nextSrc || activeFrameKey !== frameKey;
+  const sourceChanged = currentSrc !== nextSrc || activeSpriteFrames !== frameSet;
 
-  activeFrameToken += 1;
-  const frameToken = activeFrameToken;
-  activeFrameKey = frameKey;
   activeSpriteFrames = frameSet;
   spriteFrameIndex = 0;
   nextSpriteFrameAt = performance.now() + SPRITE_FRAME_INTERVAL;
@@ -108,7 +102,7 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   if (sourceChanged || options.force) {
     image.alt = evolution.name;
     setSpriteFrame(nextSrc);
-    prepareSolidFrameSet(frameSet, frameToken);
+    preloadSpriteFrames(frameSet);
   }
 
   clampPosition();
@@ -131,7 +125,6 @@ export function pulseTrainingSprite(action = 'pulse') {
   activeMotion = unit.dataset.motion;
   actionUntil = performance.now() + 430;
 
-  // Force animation restart.
   void unit.offsetWidth;
   unit.classList.add('training-react');
   spawnParticles(action === 'repair' ? 0x79ffd8 : getStageColor());
@@ -155,6 +148,117 @@ export function playEvolutionEffect() {
   window.setTimeout(() => {
     unit?.classList.remove('training-evolving');
   }, 860);
+}
+
+function getTrainingFramesForStage(nextStage) {
+  if (nextStage !== 0) return null;
+  if (solidPhase1Frames) return solidPhase1Frames;
+  prepareSolidPhase1Frames();
+  return phase1TrainingFrames;
+}
+
+function prepareSolidPhase1Frames() {
+  if (solidPhase1Frames || solidPhase1Promise) return;
+
+  solidPhase1Promise = Promise.all(phase1TrainingFrames.map(repairTransparentHoles))
+    .then((frames) => {
+      solidPhase1Frames = frames;
+      if (stageIndex === 0 && unit && image) {
+        activeSpriteFrames = solidPhase1Frames;
+        spriteFrameIndex = 0;
+        setSpriteFrame(solidPhase1Frames[0]);
+        preloadSpriteFrames(solidPhase1Frames);
+      }
+    })
+    .catch((error) => {
+      console.warn('No se pudo reparar la transparencia de los sprites de fase 1.', error);
+      solidPhase1Promise = null;
+    });
+}
+
+async function repairTransparentHoles(src) {
+  const sourceImage = await loadImage(src);
+  const canvas = document.createElement('canvas');
+  canvas.width = sourceImage.naturalWidth || sourceImage.width;
+  canvas.height = sourceImage.naturalHeight || sourceImage.height;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  fillInternalAlphaHoles(imageData);
+  context.putImageData(imageData, 0, 0);
+
+  return canvas.toDataURL('image/webp', 0.92);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const sourceImage = new Image();
+    sourceImage.onload = () => resolve(sourceImage);
+    sourceImage.onerror = reject;
+    sourceImage.src = src;
+  });
+}
+
+function fillInternalAlphaHoles(imageData) {
+  const { data, width, height } = imageData;
+  const total = width * height;
+  const solid = new Uint8Array(total);
+  const visited = new Uint8Array(total);
+  const queue = [];
+  let readIndex = 0;
+
+  for (let index = 0; index < total; index += 1) {
+    solid[index] = data[index * 4 + 3] > 8 ? 1 : 0;
+  }
+
+  const addExteriorPixel = (x, y) => {
+    const index = y * width + x;
+    if (!visited[index] && !solid[index]) {
+      visited[index] = 1;
+      queue.push(index);
+    }
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    addExteriorPixel(x, 0);
+    addExteriorPixel(x, height - 1);
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    addExteriorPixel(0, y);
+    addExteriorPixel(width - 1, y);
+  }
+
+  while (readIndex < queue.length) {
+    const index = queue[readIndex];
+    readIndex += 1;
+    const x = index % width;
+    const y = Math.floor(index / width);
+
+    if (x > 0) addNeighbour(index - 1);
+    if (x < width - 1) addNeighbour(index + 1);
+    if (y > 0) addNeighbour(index - width);
+    if (y < height - 1) addNeighbour(index + width);
+  }
+
+  function addNeighbour(index) {
+    if (!visited[index] && !solid[index]) {
+      visited[index] = 1;
+      queue.push(index);
+    }
+  }
+
+  for (let index = 0; index < total; index += 1) {
+    if (!solid[index] && !visited[index]) {
+      const pixel = index * 4;
+      data[pixel] = FILL_COLOR[0];
+      data[pixel + 1] = FILL_COLOR[1];
+      data[pixel + 2] = FILL_COLOR[2];
+      data[pixel + 3] = FILL_COLOR[3];
+    }
+  }
 }
 
 function ensureOverlayStructure() {
@@ -215,165 +319,12 @@ function setSpriteFrame(src) {
   });
 }
 
-function prepareSolidFrameSet(frameSet, frameToken) {
+function preloadSpriteFrames(frameSet) {
   if (!frameSet) return;
-
-  Promise.all(frameSet.map((src) => solidifyTransparentHoles(src)))
-    .then((solidFrames) => {
-      const stillOnPhaseOne = stageIndex === 0 && activeFrameToken === frameToken;
-      if (!stillOnPhaseOne) return;
-
-      activeSpriteFrames = solidFrames;
-      spriteFrameIndex = 0;
-      nextSpriteFrameAt = performance.now() + SPRITE_FRAME_INTERVAL;
-      setSpriteFrame(solidFrames[0]);
-    })
-    .catch(() => {
-      // If the browser blocks canvas processing for any reason, keep the original sprites.
-    });
-}
-
-function solidifyTransparentHoles(src) {
-  if (solidFrameCache.has(src)) return solidFrameCache.get(src);
-
-  const promise = loadImage(src)
-    .then((loadedImage) => buildSolidSpriteDataUrl(loadedImage))
-    .catch(() => src);
-
-  solidFrameCache.set(src, promise);
-  return promise;
-}
-
-function loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const sprite = new Image();
-    sprite.decoding = 'async';
-    sprite.onload = () => resolve(sprite);
-    sprite.onerror = reject;
-    sprite.src = src;
+  frameSet.forEach((src) => {
+    const preloader = new Image();
+    preloader.src = src;
   });
-}
-
-function buildSolidSpriteDataUrl(sourceImage) {
-  const canvas = document.createElement('canvas');
-  const width = sourceImage.naturalWidth || sourceImage.width;
-  const height = sourceImage.naturalHeight || sourceImage.height;
-  canvas.width = width;
-  canvas.height = height;
-
-  const context = canvas.getContext('2d', { willReadFrequently: true });
-  context.drawImage(sourceImage, 0, 0, width, height);
-
-  const imageData = context.getImageData(0, 0, width, height);
-  const { data } = imageData;
-  const outsideTransparent = findBorderConnectedTransparency(data, width, height);
-
-  for (let pixel = 0; pixel < width * height; pixel += 1) {
-    const alphaIndex = pixel * 4 + 3;
-    const alpha = data[alphaIndex];
-
-    if (alpha >= 18) continue;
-    if (outsideTransparent[pixel] && !isInsideEggBody(pixel, width, height)) continue;
-
-    const fill = sampleNeighborColor(data, pixel, width, height);
-    data[pixel * 4] = fill.r;
-    data[pixel * 4 + 1] = fill.g;
-    data[pixel * 4 + 2] = fill.b;
-    data[alphaIndex] = 255;
-  }
-
-  context.putImageData(imageData, 0, 0);
-  return canvas.toDataURL('image/webp', 0.92);
-}
-
-function findBorderConnectedTransparency(data, width, height) {
-  const outside = new Uint8Array(width * height);
-  const stack = [];
-
-  for (let x = 0; x < width; x += 1) {
-    pushTransparentPixel(stack, data, x, width, height);
-    pushTransparentPixel(stack, data, (height - 1) * width + x, width, height);
-  }
-
-  for (let y = 0; y < height; y += 1) {
-    pushTransparentPixel(stack, data, y * width, width, height);
-    pushTransparentPixel(stack, data, y * width + width - 1, width, height);
-  }
-
-  while (stack.length) {
-    const pixel = stack.pop();
-    if (outside[pixel]) continue;
-    outside[pixel] = 1;
-
-    const x = pixel % width;
-    const y = Math.floor(pixel / width);
-    const neighbors = [
-      y > 0 ? pixel - width : -1,
-      y < height - 1 ? pixel + width : -1,
-      x > 0 ? pixel - 1 : -1,
-      x < width - 1 ? pixel + 1 : -1
-    ];
-
-    neighbors.forEach((neighbor) => pushTransparentPixel(stack, data, neighbor, width, height, outside));
-  }
-
-  return outside;
-}
-
-function pushTransparentPixel(stack, data, pixel, width, height, visited = null) {
-  if (pixel < 0 || pixel >= width * height) return;
-  if (visited?.[pixel]) return;
-  if (data[pixel * 4 + 3] >= 18) return;
-  stack.push(pixel);
-}
-
-function isInsideEggBody(pixel, width, height) {
-  const x = pixel % width;
-  const y = Math.floor(pixel / width);
-  const normalizedX = (x - width * 0.5) / (width * 0.43);
-  const normalizedY = (y - height * 0.52) / (height * 0.43);
-
-  return normalizedX * normalizedX + normalizedY * normalizedY <= 1;
-}
-
-function sampleNeighborColor(data, pixel, width, height) {
-  const own = {
-    r: data[pixel * 4],
-    g: data[pixel * 4 + 1],
-    b: data[pixel * 4 + 2]
-  };
-
-  if (own.r + own.g + own.b > 24) return own;
-
-  const x = pixel % width;
-  const y = Math.floor(pixel / width);
-
-  for (let radius = 1; radius <= 6; radius += 1) {
-    const samples = [];
-
-    for (let sampleY = Math.max(0, y - radius); sampleY <= Math.min(height - 1, y + radius); sampleY += 1) {
-      for (let sampleX = Math.max(0, x - radius); sampleX <= Math.min(width - 1, x + radius); sampleX += 1) {
-        const samplePixel = sampleY * width + sampleX;
-        if (data[samplePixel * 4 + 3] < 18) continue;
-
-        samples.push({
-          r: data[samplePixel * 4],
-          g: data[samplePixel * 4 + 1],
-          b: data[samplePixel * 4 + 2]
-        });
-      }
-    }
-
-    if (samples.length) {
-      return samples.reduce((accumulator, sample) => ({
-        r: accumulator.r + sample.r / samples.length,
-        g: accumulator.g + sample.g / samples.length,
-        b: accumulator.b + sample.b / samples.length
-      }), { r: 0, g: 0, b: 0 });
-    }
-  }
-
-  return { r: 214, g: 224, b: 238 };
 }
 
 function updateMovement(deltaSeconds, now) {
