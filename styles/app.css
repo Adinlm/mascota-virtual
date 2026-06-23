@@ -86,7 +86,101 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
 .game-root { position: relative; width: 100%; min-height: 300px; border: 1px solid rgba(124, 247, 255, 0.24); border-radius: 22px; overflow: hidden; background: #02050d; }
 .game-root canvas { display: block; width: 100% !important; height: auto !important; }
 .training-overlay { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.training-layer { position: absolute; inset: 0; pointer-events: none; }
+.training-layer--back { z-index: 0; }
+.training-layer--front { z-index: 5; }
+
+.training-track {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  bottom: 14%;
+  height: 22%;
+  border: 1px solid rgba(124, 247, 255, 0.16);
+  border-radius: 999px 999px 24px 24px;
+  background:
+    repeating-linear-gradient(90deg, rgba(124, 247, 255, 0.16) 0 2px, transparent 2px 38px),
+    radial-gradient(ellipse at 50% 100%, rgba(124, 247, 255, 0.16), transparent 70%);
+  opacity: 0.42;
+  transform: perspective(260px) rotateX(58deg);
+  transform-origin: center bottom;
+}
+
+.training-orb {
+  position: absolute;
+  width: clamp(8px, 1.4vw, 16px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: var(--cyan);
+  filter: blur(0.2px);
+  opacity: 0.44;
+  box-shadow: 0 0 18px rgba(124, 247, 255, 0.72);
+  animation: training-orb-drift 4600ms ease-in-out infinite;
+}
+.training-orb--one { left: 16%; top: 24%; animation-delay: -900ms; }
+.training-orb--two { left: 72%; top: 30%; animation-delay: -2100ms; }
+.training-orb--three { left: 48%; top: 15%; animation-delay: -3300ms; }
+
+.training-dummy {
+  position: absolute;
+  width: clamp(42px, 6.6vw, 70px);
+  height: clamp(74px, 11vw, 112px);
+  left: 50%;
+  top: 57%;
+  opacity: 0.42;
+  transform: translate(-50%, -50%);
+  transform-origin: center bottom;
+  border: 1px solid rgba(255, 216, 107, 0.28);
+  border-radius: 999px 999px 18px 18px;
+  background:
+    linear-gradient(90deg, transparent 46%, rgba(255, 216, 107, 0.22) 48% 52%, transparent 54%),
+    linear-gradient(180deg, rgba(255, 216, 107, 0.42), rgba(139, 125, 255, 0.24) 55%, rgba(5, 10, 19, 0.5));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4), 0 0 14px rgba(255, 216, 107, 0.14);
+  animation: training-dummy-idle 2300ms ease-in-out infinite;
+}
+.training-dummy::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -18%;
+  width: 52%;
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  border: 1px solid rgba(255, 216, 107, 0.36);
+  background: radial-gradient(circle at 42% 34%, rgba(255, 255, 255, 0.24), transparent 24%), rgba(255, 216, 107, 0.24);
+}
+.training-dummy::after {
+  content: "";
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 38%;
+  height: 9%;
+  border-radius: 999px;
+  background: rgba(255, 216, 107, 0.42);
+  box-shadow: 0 0 12px rgba(255, 216, 107, 0.35);
+}
+.training-dummy--left { left: 18%; top: 59%; animation-delay: -540ms; }
+.training-dummy--center { left: 52%; top: 65%; animation-delay: -1180ms; }
+.training-dummy--right { left: 82%; top: 55%; animation-delay: -1640ms; }
+
+.game-root[data-training-stage="2"] .training-dummy,
+.game-root[data-training-stage="3"] .training-dummy,
+.game-root[data-training-stage="4"] .training-dummy,
+.game-root[data-training-stage="5"] .training-dummy,
+.game-root[data-training-stage="6"] .training-dummy {
+  opacity: 0.74;
+  animation-duration: 1700ms;
+}
+
+.training-dummy.is-hit {
+  animation: training-dummy-hit 360ms cubic-bezier(.2, .9, .24, 1.2), training-dummy-idle 1700ms ease-in-out 360ms infinite;
+}
+
 .training-pet-unit {
+  --stage-color: var(--cyan);
+  --training-intensity: 1;
   position: absolute;
   left: 0;
   top: 0;
@@ -95,15 +189,48 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
   transform: translate3d(50%, 50%, 0);
   transform-origin: center;
   will-change: transform;
+  z-index: 3;
+}
+.training-pet-shadow {
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: 0;
+  height: 16%;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.42);
+  filter: blur(6px);
+  transform: scaleX(1.08);
+  animation: training-shadow 920ms ease-in-out infinite;
 }
 .training-pet-glow {
   position: absolute;
   inset: 8%;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(124, 247, 255, 0.26), rgba(124, 247, 255, 0.04) 55%, transparent 70%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--stage-color) 32%, transparent), rgba(124, 247, 255, 0.04) 55%, transparent 70%);
   filter: blur(4px);
   transform: scale(1.15);
+  animation: training-glow 1600ms ease-in-out infinite;
 }
+.training-afterimage,
+.training-pet-img,
+.training-focus-core {
+  position: absolute;
+  inset: 0;
+}
+.training-afterimage {
+  z-index: 0;
+  border-radius: 9px;
+  background-image: var(--training-sprite-image);
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  filter: saturate(1.4) brightness(1.4);
+}
+.training-afterimage--one { transform: translateX(-10px); }
+.training-afterimage--two { transform: translateX(-18px) scale(0.96); }
 .training-pet-img {
   position: relative;
   z-index: 1;
@@ -114,21 +241,55 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
   border-radius: 9px;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  filter: contrast(1.18) saturate(1.16) drop-shadow(0 0 10px rgba(124, 247, 255, 0.44));
+  filter: contrast(1.18) saturate(1.16) drop-shadow(0 0 10px color-mix(in srgb, var(--stage-color) 56%, transparent));
   animation: training-idle 920ms steps(2, end) infinite;
   user-select: none;
 }
+.training-focus-core {
+  z-index: 2;
+  width: 28%;
+  height: 28%;
+  margin: auto;
+  border-radius: 999px;
+  opacity: 0;
+  background: var(--stage-color);
+  box-shadow: 0 0 18px var(--stage-color), 0 0 46px var(--stage-color);
+  mix-blend-mode: screen;
+}
+
+.game-root[data-training-stage="2"] .training-pet-img,
+.game-root[data-training-stage="3"] .training-pet-img,
+.game-root[data-training-stage="4"] .training-pet-img,
+.game-root[data-training-stage="5"] .training-pet-img,
+.game-root[data-training-stage="6"] .training-pet-img {
+  animation-duration: 760ms;
+  filter: contrast(1.24) saturate(1.32) drop-shadow(0 0 14px color-mix(in srgb, var(--stage-color) 72%, transparent));
+}
+
+.training-pet-unit[data-motion="dash"] .training-pet-img { animation: training-dash 520ms steps(3, end), training-idle 760ms steps(2, end) 520ms infinite; }
+.training-pet-unit[data-motion="dash"] .training-afterimage { animation: training-afterimage 460ms ease-out forwards; }
+.training-pet-unit[data-motion="strike"] .training-pet-img { animation: training-strike 620ms steps(4, end), training-idle 760ms steps(2, end) 620ms infinite; }
+.training-pet-unit[data-motion="combo"] .training-pet-img { animation: training-combo 860ms steps(5, end), training-idle 720ms steps(2, end) 860ms infinite; }
+.training-pet-unit[data-motion="uppercut"] .training-pet-img { animation: training-uppercut 720ms steps(4, end), training-idle 760ms steps(2, end) 720ms infinite; }
+.training-pet-unit[data-motion="guard"] .training-pet-img { animation: training-guard 760ms ease-in-out, training-idle 760ms steps(2, end) 760ms infinite; }
+.training-pet-unit[data-motion="focus"] .training-focus-core,
+.training-pet-unit[data-motion="guard"] .training-focus-core { animation: training-core 760ms ease-out forwards; }
+
 .training-pet-unit.training-react .training-pet-img {
   animation: training-react 260ms steps(2, end), training-idle 920ms steps(2, end) 260ms infinite;
 }
 .training-pet-unit.training-evolving .training-pet-img {
   animation: training-evolve 760ms cubic-bezier(.2, .9, .24, 1.2), training-idle 920ms steps(2, end) 760ms infinite;
 }
+
 .training-evolution-ring,
-.training-particle {
+.training-particle,
+.training-speed-line,
+.training-impact,
+.training-focus-pulse {
   position: absolute;
   pointer-events: none;
-  z-index: 3;
+  z-index: 6;
 }
 .training-evolution-ring {
   width: 42px;
@@ -148,27 +309,138 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
   box-shadow: 0 0 10px var(--particle-color, var(--cyan));
   animation: training-particle 720ms ease-out forwards;
 }
+.training-speed-line {
+  width: clamp(34px, 7vw, 78px);
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--line-color, var(--cyan)), transparent);
+  box-shadow: 0 0 12px var(--line-color, var(--cyan));
+  transform: rotate(var(--line-angle, 0deg));
+  animation: training-speed-line 520ms ease-out forwards;
+}
+.training-impact {
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border-radius: 999px;
+  border: 2px solid var(--stage-color, var(--cyan));
+  background:
+    linear-gradient(45deg, transparent 43%, var(--stage-color, var(--cyan)) 45% 55%, transparent 57%),
+    linear-gradient(-45deg, transparent 43%, var(--stage-color, var(--cyan)) 45% 55%, transparent 57%);
+  filter: drop-shadow(0 0 14px var(--stage-color, var(--cyan)));
+  animation: training-impact 460ms ease-out forwards;
+}
+.training-impact--combo {
+  width: 60px;
+  height: 60px;
+  margin: -30px 0 0 -30px;
+  animation-duration: 560ms;
+}
+.training-focus-pulse {
+  width: 34px;
+  height: 34px;
+  margin: -17px 0 0 -17px;
+  border-radius: 999px;
+  border: 2px solid var(--stage-color, var(--cyan));
+  box-shadow: 0 0 22px var(--stage-color, var(--cyan));
+  animation: training-focus-pulse 760ms ease-out forwards;
+}
+
 @keyframes training-idle {
-  0%, 100% { translate: 0 0; }
-  50% { translate: 0 -4px; }
+  0%, 100% { transform: translateY(0) skewX(0deg); }
+  50% { transform: translateY(-4px) skewX(-1.5deg); }
+}
+@keyframes training-shadow {
+  0%, 100% { opacity: 0.46; transform: scaleX(1.08); }
+  50% { opacity: 0.28; transform: scaleX(0.88); }
+}
+@keyframes training-glow {
+  0%, 100% { opacity: 0.78; transform: scale(1.12); }
+  50% { opacity: 1; transform: scale(calc(1.16 * var(--training-intensity))); }
+}
+@keyframes training-dash {
+  0% { transform: translateX(0) scaleX(1); filter: brightness(1.15); }
+  35% { transform: translateX(12px) scaleX(1.18); filter: brightness(1.55); }
+  100% { transform: translateX(0) scaleX(1); filter: brightness(1); }
+}
+@keyframes training-strike {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  34% { transform: translate(8px, -3px) rotate(-4deg) scaleX(1.12); }
+  58% { transform: translate(-5px, 2px) rotate(5deg) scaleX(0.94); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+@keyframes training-combo {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  18% { transform: translate(8px, -4px) rotate(-5deg); }
+  38% { transform: translate(-9px, 1px) rotate(7deg); }
+  62% { transform: translate(12px, -8px) scaleY(1.08) rotate(-4deg); }
+  84% { transform: translate(-4px, 2px) rotate(3deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+@keyframes training-uppercut {
+  0% { transform: translateY(0) scaleY(1); }
+  40% { transform: translateY(-14px) scaleY(1.14) rotate(-6deg); }
+  72% { transform: translateY(4px) scaleY(0.92) rotate(4deg); }
+  100% { transform: translateY(0) scaleY(1); }
+}
+@keyframes training-guard {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(0.94); filter: brightness(1.55) saturate(1.4); }
+}
+@keyframes training-afterimage {
+  0% { opacity: 0.38; transform: translateX(-2px) scale(1); }
+  100% { opacity: 0; transform: translateX(-36px) scale(0.92); }
+}
+@keyframes training-core {
+  0% { opacity: 0; transform: scale(0.2); }
+  45% { opacity: 0.78; transform: scale(1.18); }
+  100% { opacity: 0; transform: scale(2.4); }
 }
 @keyframes training-react {
-  0% { scale: 1; rotate: 0deg; }
-  50% { scale: 1.18; rotate: -5deg; }
-  100% { scale: 1; rotate: 0deg; }
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.18) rotate(-5deg); }
+  100% { transform: scale(1) rotate(0deg); }
 }
 @keyframes training-evolve {
-  0% { opacity: 0.25; scale: 0.45; rotate: -18deg; filter: brightness(2) contrast(1.4); }
-  45% { opacity: 1; scale: 1.38; rotate: 8deg; filter: brightness(2.4) contrast(1.5); }
-  100% { opacity: 1; scale: 1; rotate: 0deg; filter: contrast(1.18) saturate(1.16) drop-shadow(0 0 10px rgba(124, 247, 255, 0.44)); }
+  0% { opacity: 0.25; transform: scale(0.45) rotate(-18deg); filter: brightness(2) contrast(1.4); }
+  45% { opacity: 1; transform: scale(1.38) rotate(8deg); filter: brightness(2.4) contrast(1.5); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); filter: contrast(1.18) saturate(1.16) drop-shadow(0 0 10px rgba(124, 247, 255, 0.44)); }
 }
 @keyframes training-ring {
-  from { opacity: 0.9; scale: 0.5; }
-  to { opacity: 0; scale: 7; }
+  from { opacity: 0.9; transform: scale(0.5); }
+  to { opacity: 0; transform: scale(7); }
 }
 @keyframes training-particle {
   from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   to { opacity: 0; transform: translate3d(var(--dx), var(--dy), 0) scale(0.2); }
+}
+@keyframes training-speed-line {
+  from { opacity: 0; transform: translate3d(0, 0, 0) rotate(var(--line-angle, 0deg)) scaleX(0.35); }
+  20% { opacity: 0.9; }
+  to { opacity: 0; transform: translate3d(var(--line-distance, -90px), 0, 0) rotate(var(--line-angle, 0deg)) scaleX(1); }
+}
+@keyframes training-impact {
+  0% { opacity: 0; transform: scale(0.34) rotate(0deg); }
+  22% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.7) rotate(34deg); }
+}
+@keyframes training-focus-pulse {
+  from { opacity: 0.82; transform: scale(0.4); }
+  to { opacity: 0; transform: scale(5); }
+}
+@keyframes training-dummy-idle {
+  0%, 100% { transform: translate(-50%, -50%) rotate(-1.5deg); }
+  50% { transform: translate(-50%, calc(-50% - 5px)) rotate(1.5deg); }
+}
+@keyframes training-dummy-hit {
+  0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); filter: brightness(1); }
+  45% { transform: translate(calc(-50% + 11px), calc(-50% - 3px)) rotate(8deg) scale(1.08); filter: brightness(1.8); }
+  100% { transform: translate(-50%, -50%) rotate(0deg) scale(1); filter: brightness(1); }
+}
+@keyframes training-orb-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.84); opacity: 0.28; }
+  50% { transform: translate3d(14px, -18px, 0) scale(1.12); opacity: 0.72; }
 }
 
 .panel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
@@ -202,6 +474,17 @@ h2 { margin-bottom: 6px; font-size: clamp(1.15rem, 3vw, 1.6rem); letter-spacing:
 .modal[hidden] { display: none; }
 .modal__content { width: min(420px, 100%); text-align: center; padding: 22px; border-radius: 26px; }
 .modal__content p { color: var(--muted); line-height: 1.5; }
+
+@media (prefers-reduced-motion: reduce) {
+  .training-orb,
+  .training-dummy,
+  .training-pet-img,
+  .training-pet-shadow,
+  .training-pet-glow {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
 
 @media (max-width: 780px) {
   .topbar, .game-card__header { align-items: flex-start; }
