@@ -1,0 +1,22 @@
+.game-root[data-training-stage="1"] .training-pet-unit[data-sprite-mode="frames"] {
+  width: clamp(102px, 17vw, 158px);
+  aspect-ratio: 0.86;
+}
+
+.game-root[data-training-stage="1"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img {
+  border-radius: 0;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px rgba(0, 244, 255, 0.52));
+}
+
+.game-root[data-training-stage="1"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage {
+  display: none;
+}
+
+.game-root[data-training-stage="1"] .training-dummy {
+  opacity: 0;
+}
+
+.game-root[data-training-stage="1"] .training-track {
+  opacity: 0.24;
+}
