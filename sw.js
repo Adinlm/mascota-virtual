@@ -1,13 +1,15 @@
-const CACHE_NAME = 'cybernexo-prisma-pwa-v19';
+const CACHE_NAME = 'cybernexo-prisma-pwa-v20';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icon.svg',
   './styles/app.css',
+  './styles/training-phase1.css',
   './src/main.js',
   './src/pwa.js',
   './src/assets/evolutionImages.js',
+  './src/assets/phase1TrainingFrames.js',
   './src/audio/soundscape.js',
   './src/config/evolutions.js',
   './src/game/PetScene.js',
@@ -19,7 +21,12 @@ const APP_SHELL = [
   './assets/evolutions/phase-3.webp',
   './assets/evolutions/phase-4.webp',
   './assets/evolutions/phase-5.webp',
-  './assets/evolutions/phase-6.webp'
+  './assets/evolutions/phase-6.webp',
+  './assets/evolutions/training/phase-1-training-frame-1.webp',
+  './assets/evolutions/training/phase-1-training-frame-2.webp',
+  './assets/evolutions/training/phase-1-training-frame-3.webp',
+  './assets/evolutions/training/phase-1-training-frame-4.webp',
+  './assets/evolutions/training/phase-1-training-frame-5.webp'
 ];
 
 self.addEventListener('install', (event) => {
