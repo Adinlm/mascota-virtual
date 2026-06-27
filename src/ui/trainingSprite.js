@@ -270,7 +270,7 @@ async function removeExteriorBackground(src) {
   makeExteriorBackgroundTransparent(imageData);
   context.putImageData(imageData, 0, 0);
 
-  return canvas.toDataURL('image/webp', 0.92);
+  return canvas.toDataURL('image/png');
 }
 
 async function repairTransparentHoles(src) {
