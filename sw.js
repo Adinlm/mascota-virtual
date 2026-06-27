@@ -1,6 +1,6 @@
-const CACHE_NAME = 'cybernexo-prisma-pwa-v24';
+const CACHE_NAME = 'cybernexo-prisma-pwa-v25';
 
-const CORE_ASSETS = [
+const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
@@ -30,71 +30,10 @@ const CORE_ASSETS = [
   './assets/evolutions/phase-6.webp'
 ];
 
-const TRAINING_ASSETS = [
-  './assets/evolutions/training/phase-1-training-frame-1.webp',
-  './assets/evolutions/training/phase-1-training-frame-2.webp',
-  './assets/evolutions/training/phase-1-training-frame-3.webp',
-  './assets/evolutions/training/phase-1-training-frame-4.webp',
-  './assets/evolutions/training/phase-1-training-frame-5.webp',
-  './assets/evolutions/training/phase-2-walk-frame-01.webp',
-  './assets/evolutions/training/phase-2-walk-frame-02.webp',
-  './assets/evolutions/training/phase-2-walk-frame-03.webp',
-  './assets/evolutions/training/phase-2-walk-frame-04.webp',
-  './assets/evolutions/training/phase-2-walk-frame-05.webp',
-  './assets/evolutions/training/phase-2-walk-frame-06.webp',
-  './assets/evolutions/training/phase-2-walk-frame-07.webp',
-  './assets/evolutions/training/phase-2-walk-frame-08.webp',
-  './assets/evolutions/training/phase-2-walk-frame-09.webp',
-  './assets/evolutions/training/phase-2-walk-frame-10.webp',
-  './assets/evolutions/training/phase-2-walk-frame-11.webp',
-  './assets/evolutions/training/phase-2-walk-frame-12.webp',
-  './assets/evolutions/training/phase-3-walk-frame-01.webp',
-  './assets/evolutions/training/phase-3-walk-frame-02.webp',
-  './assets/evolutions/training/phase-3-walk-frame-03.webp',
-  './assets/evolutions/training/phase-3-walk-frame-04.webp',
-  './assets/evolutions/training/phase-3-walk-frame-05.webp',
-  './assets/evolutions/training/phase-3-walk-frame-06.webp',
-  './assets/evolutions/training/phase-3-walk-frame-07.webp',
-  './assets/evolutions/training/phase-3-walk-frame-08.webp',
-  './assets/evolutions/training/phase-3-walk-frame-09.webp',
-  './assets/evolutions/training/phase-3-walk-frame-10.webp',
-  './assets/evolutions/training/phase-4-walk-frame-01.webp',
-  './assets/evolutions/training/phase-4-walk-frame-02.webp',
-  './assets/evolutions/training/phase-4-walk-frame-03.webp',
-  './assets/evolutions/training/phase-4-walk-frame-04.webp',
-  './assets/evolutions/training/phase-4-walk-frame-05.webp',
-  './assets/evolutions/training/phase-4-walk-frame-06.webp',
-  './assets/evolutions/training/phase-4-walk-frame-07.webp',
-  './assets/evolutions/training/phase-4-walk-frame-08.webp',
-  './assets/evolutions/training/phase-4-walk-frame-09.webp',
-  './assets/evolutions/training/phase-4-walk-frame-10.webp',
-  './assets/evolutions/training/phase-5-walk-frame-01.webp',
-  './assets/evolutions/training/phase-5-walk-frame-02.webp',
-  './assets/evolutions/training/phase-5-walk-frame-03.webp',
-  './assets/evolutions/training/phase-5-walk-frame-04.webp',
-  './assets/evolutions/training/phase-5-walk-frame-05.webp',
-  './assets/evolutions/training/phase-5-walk-frame-06.webp',
-  './assets/evolutions/training/phase-5-walk-frame-07.webp',
-  './assets/evolutions/training/phase-5-walk-frame-08.webp',
-  './assets/evolutions/training/phase-5-walk-frame-09.webp',
-  './assets/evolutions/training/phase-5-walk-frame-10.webp',
-  './assets/evolutions/training/phase-6-float-frame-01.webp',
-  './assets/evolutions/training/phase-6-float-frame-02.webp',
-  './assets/evolutions/training/phase-6-float-frame-03.webp',
-  './assets/evolutions/training/phase-6-float-frame-04.webp',
-  './assets/evolutions/training/phase-6-float-frame-05.webp',
-  './assets/evolutions/training/phase-6-float-frame-06.webp',
-  './assets/evolutions/training/phase-6-float-frame-07.webp',
-  './assets/evolutions/training/phase-6-float-frame-08.webp',
-  './assets/evolutions/training/phase-6-float-frame-09.webp',
-  './assets/evolutions/training/phase-6-float-frame-10.webp'
-];
-
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(CORE_ASSETS)
-        .then(() => Promise.allSettled(TRAINING_ASSETS.map((asset) => cache.add(asset)))))
+      .then((cache) => cache.addAll(APP_SHELL))
       .then(() => self.skipWaiting())
   );
 });
@@ -112,7 +51,16 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      return cached || fetch(event.request);
+      if (cached) return cached;
+
+      return fetch(event.request).then((response) => {
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+
+        return response;
+      });
     })
   );
 });
