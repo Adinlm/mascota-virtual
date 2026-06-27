@@ -32,10 +32,14 @@ let solidPhase1Frames = null;
 let solidPhase1Promise = null;
 let fallbackLocked = false;
 
+const transparentFrameCache = new Map();
+const transparentFramePromises = new Map();
+
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
 const SPRITE_FRAME_INTERVAL = 120;
 const FLOAT_FRAME_INTERVAL = 155;
+const BACKGROUND_REPAIR_STAGE_INDEX = 3;
 const FILL_COLOR = [224, 235, 248, 255];
 
 const TRAINING_FRAMES_BY_STAGE = [
@@ -172,7 +176,20 @@ function getTrainingFramesForStage(nextStage) {
     return phase1TrainingFrames;
   }
 
-  return TRAINING_FRAMES_BY_STAGE[nextStage] ?? null;
+  const frames = TRAINING_FRAMES_BY_STAGE[nextStage] ?? null;
+  if (!frames) return null;
+
+  if (needsBackgroundRepair(nextStage)) {
+    const transparentFrames = transparentFrameCache.get(nextStage);
+    if (transparentFrames) return transparentFrames;
+    prepareTransparentStageFrames(nextStage, frames);
+  }
+
+  return frames;
+}
+
+function needsBackgroundRepair(nextStage) {
+  return nextStage >= BACKGROUND_REPAIR_STAGE_INDEX;
 }
 
 function getFrameInterval(nextStage = stageIndex) {
@@ -196,6 +213,46 @@ function prepareSolidPhase1Frames() {
       console.warn('No se pudo reparar la transparencia de los sprites de fase 1.', error);
       solidPhase1Promise = null;
     });
+}
+
+function prepareTransparentStageFrames(targetStage, frames) {
+  if (transparentFrameCache.has(targetStage) || transparentFramePromises.has(targetStage)) return;
+
+  const promise = Promise.all(frames.map(removeExteriorBackground))
+    .then((transparentFrames) => {
+      transparentFrameCache.set(targetStage, transparentFrames);
+      transparentFramePromises.delete(targetStage);
+
+      if (stageIndex === targetStage && unit && image) {
+        activeSpriteFrames = transparentFrames;
+        spriteFrameIndex = 0;
+        nextSpriteFrameAt = performance.now() + getFrameInterval(targetStage);
+        setSpriteFrame(transparentFrames[0]);
+        preloadSpriteFrames(transparentFrames);
+      }
+    })
+    .catch((error) => {
+      console.warn(`No se pudo limpiar el fondo de los sprites de fase ${targetStage + 1}.`, error);
+      transparentFramePromises.delete(targetStage);
+    });
+
+  transparentFramePromises.set(targetStage, promise);
+}
+
+async function removeExteriorBackground(src) {
+  const sourceImage = await loadImage(src);
+  const canvas = document.createElement('canvas');
+  canvas.width = sourceImage.naturalWidth || sourceImage.width;
+  canvas.height = sourceImage.naturalHeight || sourceImage.height;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  makeExteriorBackgroundTransparent(imageData);
+  context.putImageData(imageData, 0, 0);
+
+  return canvas.toDataURL('image/webp', 0.92);
 }
 
 async function repairTransparentHoles(src) {
@@ -281,6 +338,75 @@ function fillInternalAlphaHoles(imageData) {
       data[pixel + 3] = FILL_COLOR[3];
     }
   }
+}
+
+function makeExteriorBackgroundTransparent(imageData) {
+  const { data, width, height } = imageData;
+  const total = width * height;
+  const visited = new Uint8Array(total);
+  const queue = [];
+  let readIndex = 0;
+
+  const addBackgroundPixel = (x, y) => {
+    const index = y * width + x;
+    if (!visited[index] && isBackgroundCandidate(data, index)) {
+      visited[index] = 1;
+      queue.push(index);
+    }
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    addBackgroundPixel(x, 0);
+    addBackgroundPixel(x, height - 1);
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    addBackgroundPixel(0, y);
+    addBackgroundPixel(width - 1, y);
+  }
+
+  while (readIndex < queue.length) {
+    const index = queue[readIndex];
+    readIndex += 1;
+    const x = index % width;
+    const y = Math.floor(index / width);
+
+    if (x > 0) addNeighbour(index - 1);
+    if (x < width - 1) addNeighbour(index + 1);
+    if (y > 0) addNeighbour(index - width);
+    if (y < height - 1) addNeighbour(index + width);
+  }
+
+  function addNeighbour(index) {
+    if (!visited[index] && isBackgroundCandidate(data, index)) {
+      visited[index] = 1;
+      queue.push(index);
+    }
+  }
+
+  for (let index = 0; index < total; index += 1) {
+    if (visited[index]) {
+      data[index * 4 + 3] = 0;
+    }
+  }
+}
+
+function isBackgroundCandidate(data, index) {
+  const pixel = index * 4;
+  const r = data[pixel];
+  const g = data[pixel + 1];
+  const b = data[pixel + 2];
+  const a = data[pixel + 3];
+
+  if (a <= 10) return true;
+
+  const maxChannel = Math.max(r, g, b);
+  const minChannel = Math.min(r, g, b);
+  const lowSaturation = maxChannel - minChannel <= 34;
+  const veryBright = r >= 236 && g >= 236 && b >= 236;
+  const checkerGray = r >= 218 && g >= 218 && b >= 218 && lowSaturation;
+
+  return veryBright || checkerGray;
 }
 
 function ensureOverlayStructure() {
@@ -455,7 +581,7 @@ function centerPosition() {
 function clampPosition() {
   const bounds = getBounds();
   position.x = clamp(position.x, bounds.minX, bounds.maxX);
-  position.y = clamp(position.y, bounds.minY, bounds.maxY);
+  position.y = clamp(position.y, bounds.maxY >= bounds.minY ? bounds.minY : bounds.maxY, bounds.maxY);
 }
 
 function pickTarget() {
