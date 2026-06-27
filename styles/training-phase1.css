@@ -8,28 +8,78 @@
   aspect-ratio: 1;
 }
 
+.game-root[data-training-stage="3"] .training-pet-unit[data-sprite-mode="frames"] {
+  width: clamp(158px, 28vw, 248px);
+  aspect-ratio: 1;
+}
+
+.game-root[data-training-stage="4"] .training-pet-unit[data-sprite-mode="frames"] {
+  width: clamp(172px, 30vw, 272px);
+  aspect-ratio: 1;
+}
+
+.game-root[data-training-stage="5"] .training-pet-unit[data-sprite-mode="frames"] {
+  width: clamp(184px, 32vw, 292px);
+  aspect-ratio: 1;
+}
+
+.game-root[data-training-stage="6"] .training-pet-unit[data-sprite-mode="frames"] {
+  width: clamp(190px, 34vw, 310px);
+  aspect-ratio: 1;
+}
+
 .game-root[data-training-stage="1"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
-.game-root[data-training-stage="2"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img {
+.game-root[data-training-stage="2"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="3"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="4"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="5"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="6"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img {
   border-radius: 0;
   object-fit: contain;
   filter: drop-shadow(0 0 16px rgba(0, 244, 255, 0.52));
 }
 
-.game-root[data-training-stage="2"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img {
+.game-root[data-training-stage="2"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="3"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="4"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="5"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="6"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img {
   filter: drop-shadow(0 0 18px rgba(0, 174, 255, 0.66));
 }
 
+.game-root[data-training-stage="5"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img,
+.game-root[data-training-stage="6"] .training-pet-unit[data-sprite-mode="frames"] .training-pet-img {
+  filter: drop-shadow(0 0 22px rgba(0, 174, 255, 0.72)) drop-shadow(0 0 12px rgba(255, 216, 106, 0.36));
+}
+
 .game-root[data-training-stage="1"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage,
-.game-root[data-training-stage="2"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage {
+.game-root[data-training-stage="2"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage,
+.game-root[data-training-stage="3"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage,
+.game-root[data-training-stage="4"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage,
+.game-root[data-training-stage="5"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage,
+.game-root[data-training-stage="6"] .training-pet-unit[data-sprite-mode="frames"] .training-afterimage {
   display: none;
 }
 
 .game-root[data-training-stage="1"] .training-dummy,
-.game-root[data-training-stage="2"] .training-dummy {
+.game-root[data-training-stage="2"] .training-dummy,
+.game-root[data-training-stage="3"] .training-dummy,
+.game-root[data-training-stage="4"] .training-dummy,
+.game-root[data-training-stage="5"] .training-dummy,
+.game-root[data-training-stage="6"] .training-dummy {
   opacity: 0;
 }
 
 .game-root[data-training-stage="1"] .training-track,
-.game-root[data-training-stage="2"] .training-track {
+.game-root[data-training-stage="2"] .training-track,
+.game-root[data-training-stage="3"] .training-track,
+.game-root[data-training-stage="4"] .training-track,
+.game-root[data-training-stage="5"] .training-track,
+.game-root[data-training-stage="6"] .training-track {
   opacity: 0.24;
+}
+
+.game-root[data-training-stage="6"] .training-pet-glow {
+  opacity: 0.82;
+  transform: scale(1.35);
 }
