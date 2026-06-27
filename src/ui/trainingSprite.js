@@ -32,11 +32,15 @@ let solidPhase1Frames = null;
 let solidPhase1Promise = null;
 let fallbackLocked = false;
 
+const repairedFrameCache = new Map();
+const repairedFramePromises = new Map();
+
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
 const SPRITE_FRAME_INTERVAL = 120;
 const FLOAT_FRAME_INTERVAL = 155;
 const FILL_COLOR = [224, 235, 248, 255];
+const PHASE_6_STAGE_INDEX = 5;
 
 const TRAINING_FRAMES_BY_STAGE = [
   phase1TrainingFrames,
@@ -82,6 +86,7 @@ export function initTrainingSprite(initialStageIndex = 0) {
     resizeObserver.observe(root);
   }
 
+  schedulePhase6FrameRepair();
   stageIndex = normalizeStage(initialStageIndex);
   centerPosition();
   setTrainingStage(stageIndex, { force: true });
@@ -94,13 +99,14 @@ export function setTrainingStage(nextStageIndex, options = {}) {
 
   const nextStage = normalizeStage(nextStageIndex);
   const evolution = EVOLUTIONS[nextStage];
+  const waitingForCleanFrames = needsRuntimeBackgroundRepair(nextStage) && !repairedFrameCache.has(nextStage);
   const frameSet = getTrainingFramesForStage(nextStage);
-  const nextSrc = frameSet?.[0] ?? phaseImages[evolution.imageKey];
+  const nextSrc = waitingForCleanFrames ? '' : frameSet?.[0] ?? phaseImages[evolution.imageKey];
   const shouldAnimate = options.evolved || options.forceEvolution;
-  const sourceChanged = currentSrc !== nextSrc || activeSpriteFrames !== frameSet;
+  const sourceChanged = waitingForCleanFrames || currentSrc !== nextSrc || activeSpriteFrames !== frameSet;
 
   fallbackLocked = false;
-  activeSpriteFrames = frameSet;
+  activeSpriteFrames = waitingForCleanFrames ? null : frameSet;
   spriteFrameIndex = 0;
   nextSpriteFrameAt = performance.now() + getFrameInterval(nextStage);
 
@@ -109,12 +115,16 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   root.dataset.trainingStage = String(phaseNumber);
   overlay.dataset.trainingStage = String(phaseNumber);
   unit.dataset.stage = String(phaseNumber);
-  unit.dataset.spriteMode = frameSet ? 'frames' : 'static';
-  unit.dataset.motion = stageIndex === 5 ? 'float' : 'roam';
+  unit.dataset.spriteMode = waitingForCleanFrames ? 'loading' : frameSet ? 'frames' : 'static';
+  unit.dataset.spriteLoading = waitingForCleanFrames ? 'true' : 'false';
+  unit.dataset.motion = stageIndex === PHASE_6_STAGE_INDEX ? 'float' : 'roam';
   unit.style.setProperty('--stage-color', getStageColorCss());
   unit.style.setProperty('--training-intensity', String(0.75 + stageIndex * 0.12));
 
-  if (sourceChanged || options.force) {
+  if (waitingForCleanFrames) {
+    image.alt = evolution.name;
+    hideSpriteFrame();
+  } else if (sourceChanged || options.force) {
     image.alt = evolution.name;
     setSpriteFrame(nextSrc);
     preloadSpriteFrames(frameSet);
@@ -126,7 +136,7 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   if (shouldAnimate) {
     playEvolutionEffect();
     scheduleNextAction(140);
-  } else if (sourceChanged) {
+  } else if (sourceChanged && !waitingForCleanFrames) {
     pulseTrainingSprite('sync');
     scheduleNextAction(420);
   }
@@ -136,7 +146,7 @@ export function pulseTrainingSprite(action = 'pulse') {
   if (!unit) return;
   unit.classList.remove('training-react');
   unit.dataset.action = action;
-  unit.dataset.motion = action === 'repair' ? 'focus' : stageIndex === 5 ? 'float' : 'dash';
+  unit.dataset.motion = action === 'repair' ? 'focus' : stageIndex === PHASE_6_STAGE_INDEX ? 'float' : 'dash';
   activeMotion = unit.dataset.motion;
   actionUntil = performance.now() + 430;
 
@@ -172,11 +182,34 @@ function getTrainingFramesForStage(nextStage) {
     return phase1TrainingFrames;
   }
 
-  return TRAINING_FRAMES_BY_STAGE[nextStage] ?? null;
+  const frames = TRAINING_FRAMES_BY_STAGE[nextStage] ?? null;
+  if (!frames) return null;
+
+  if (needsRuntimeBackgroundRepair(nextStage)) {
+    const repairedFrames = repairedFrameCache.get(nextStage);
+    if (repairedFrames) return repairedFrames;
+    prepareTransparentStageFrames(nextStage, frames);
+  }
+
+  return frames;
+}
+
+function needsRuntimeBackgroundRepair(nextStage) {
+  return nextStage === PHASE_6_STAGE_INDEX;
 }
 
 function getFrameInterval(nextStage = stageIndex) {
-  return nextStage === 5 ? FLOAT_FRAME_INTERVAL : SPRITE_FRAME_INTERVAL;
+  return nextStage === PHASE_6_STAGE_INDEX ? FLOAT_FRAME_INTERVAL : SPRITE_FRAME_INTERVAL;
+}
+
+function schedulePhase6FrameRepair() {
+  const repair = () => prepareTransparentStageFrames(PHASE_6_STAGE_INDEX, phase6TrainingFrames);
+
+  if ('requestIdleCallback' in window) {
+    window.requestIdleCallback(repair, { timeout: 1800 });
+  } else {
+    window.setTimeout(repair, 420);
+  }
 }
 
 function prepareSolidPhase1Frames() {
@@ -196,6 +229,48 @@ function prepareSolidPhase1Frames() {
       console.warn('No se pudo reparar la transparencia de los sprites de fase 1.', error);
       solidPhase1Promise = null;
     });
+}
+
+function prepareTransparentStageFrames(targetStage, frames) {
+  if (repairedFrameCache.has(targetStage) || repairedFramePromises.has(targetStage)) return;
+
+  const promise = Promise.all(frames.map(removeExteriorBackground))
+    .then((transparentFrames) => {
+      repairedFrameCache.set(targetStage, transparentFrames);
+      repairedFramePromises.delete(targetStage);
+
+      if (stageIndex === targetStage && unit && image) {
+        activeSpriteFrames = transparentFrames;
+        spriteFrameIndex = 0;
+        nextSpriteFrameAt = performance.now() + getFrameInterval(targetStage);
+        unit.dataset.spriteLoading = 'false';
+        unit.dataset.spriteMode = 'frames';
+        setSpriteFrame(transparentFrames[0]);
+        preloadSpriteFrames(transparentFrames);
+      }
+    })
+    .catch((error) => {
+      console.warn(`No se pudo limpiar el fondo de los sprites de fase ${targetStage + 1}.`, error);
+      repairedFramePromises.delete(targetStage);
+    });
+
+  repairedFramePromises.set(targetStage, promise);
+}
+
+async function removeExteriorBackground(src) {
+  const sourceImage = await loadImage(src);
+  const canvas = document.createElement('canvas');
+  canvas.width = sourceImage.naturalWidth || sourceImage.width;
+  canvas.height = sourceImage.naturalHeight || sourceImage.height;
+
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(sourceImage, 0, 0, canvas.width, canvas.height);
+
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  makeExteriorBackgroundTransparent(imageData);
+  context.putImageData(imageData, 0, 0);
+
+  return canvas.toDataURL('image/webp', 0.92);
 }
 
 async function repairTransparentHoles(src) {
@@ -283,6 +358,75 @@ function fillInternalAlphaHoles(imageData) {
   }
 }
 
+function makeExteriorBackgroundTransparent(imageData) {
+  const { data, width, height } = imageData;
+  const total = width * height;
+  const visited = new Uint8Array(total);
+  const queue = [];
+  let readIndex = 0;
+
+  const addBackgroundPixel = (x, y) => {
+    const index = y * width + x;
+    if (!visited[index] && isBackgroundCandidate(data, index)) {
+      visited[index] = 1;
+      queue.push(index);
+    }
+  };
+
+  for (let x = 0; x < width; x += 1) {
+    addBackgroundPixel(x, 0);
+    addBackgroundPixel(x, height - 1);
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    addBackgroundPixel(0, y);
+    addBackgroundPixel(width - 1, y);
+  }
+
+  while (readIndex < queue.length) {
+    const index = queue[readIndex];
+    readIndex += 1;
+    const x = index % width;
+    const y = Math.floor(index / width);
+
+    if (x > 0) addNeighbour(index - 1);
+    if (x < width - 1) addNeighbour(index + 1);
+    if (y > 0) addNeighbour(index - width);
+    if (y < height - 1) addNeighbour(index + width);
+  }
+
+  function addNeighbour(index) {
+    if (!visited[index] && isBackgroundCandidate(data, index)) {
+      visited[index] = 1;
+      queue.push(index);
+    }
+  }
+
+  for (let index = 0; index < total; index += 1) {
+    if (visited[index]) {
+      data[index * 4 + 3] = 0;
+    }
+  }
+}
+
+function isBackgroundCandidate(data, index) {
+  const pixel = index * 4;
+  const r = data[pixel];
+  const g = data[pixel + 1];
+  const b = data[pixel + 2];
+  const a = data[pixel + 3];
+
+  if (a <= 10) return true;
+
+  const maxChannel = Math.max(r, g, b);
+  const minChannel = Math.min(r, g, b);
+  const lowSaturation = maxChannel - minChannel <= 38;
+  const veryBright = r >= 236 && g >= 236 && b >= 236;
+  const checkerGray = r >= 214 && g >= 214 && b >= 214 && lowSaturation;
+
+  return veryBright || checkerGray;
+}
+
 function ensureOverlayStructure() {
   const hasSpriteRig = overlay.querySelector('.training-pet-shadow') && overlay.querySelector('.training-layer--front');
   if (hasSpriteRig) return;
@@ -334,10 +478,21 @@ function updateFrameAnimation(now) {
 
 function setSpriteFrame(src) {
   currentSrc = src;
+  image.style.opacity = '';
   image.src = src;
   unit.style.setProperty('--training-sprite-image', `url("${src}")`);
   afterimages.forEach((ghost) => {
     ghost.style.backgroundImage = `url("${src}")`;
+  });
+}
+
+function hideSpriteFrame() {
+  currentSrc = '';
+  image.removeAttribute('src');
+  image.style.opacity = '0';
+  unit.style.removeProperty('--training-sprite-image');
+  afterimages.forEach((ghost) => {
+    ghost.style.backgroundImage = 'none';
   });
 }
 
@@ -376,7 +531,7 @@ function updateMovement(deltaSeconds, now) {
     return;
   }
 
-  const isFinalPhase = stageIndex === 5;
+  const isFinalPhase = stageIndex === PHASE_6_STAGE_INDEX;
   const motionSpeed = activeMotion === 'dash' ? (isFinalPhase ? 0.85 : 2.05) : activeMotion === 'float' ? 0.62 : 1;
   const stageSpeed = isFinalPhase ? SPEED * 0.6 : SPEED + stageIndex * 7;
   const step = Math.min(distance, stageSpeed * motionSpeed * deltaSeconds);
@@ -394,7 +549,7 @@ function updateMovement(deltaSeconds, now) {
 
 function updateAmbientAction(now) {
   if (activeMotion !== 'roam' && activeMotion !== 'float' && now > actionUntil) {
-    activeMotion = stageIndex === 5 ? 'float' : 'roam';
+    activeMotion = stageIndex === PHASE_6_STAGE_INDEX ? 'float' : 'roam';
     unit.dataset.motion = activeMotion;
   }
 
@@ -415,7 +570,7 @@ function updateAmbientAction(now) {
 }
 
 function pickMotion() {
-  if (stageIndex === 5) {
+  if (stageIndex === PHASE_6_STAGE_INDEX) {
     const motions = ['float', 'float', 'focus', 'dash'];
     return motions[Math.floor(Math.random() * motions.length)];
   }
@@ -432,7 +587,7 @@ function spawnActionEffect(action) {
 
   if (action === 'dash') {
     pickTarget();
-    spawnSpeedLines(stageIndex === 5 ? 5 : 4);
+    spawnSpeedLines(stageIndex === PHASE_6_STAGE_INDEX ? 5 : 4);
     return;
   }
 
@@ -460,7 +615,7 @@ function clampPosition() {
 
 function pickTarget() {
   const bounds = getBounds();
-  const verticalBias = stageIndex === 5 ? 0.42 : 0;
+  const verticalBias = stageIndex === PHASE_6_STAGE_INDEX ? 0.42 : 0;
 
   target = {
     x: random(bounds.minX, bounds.maxX),
@@ -474,7 +629,7 @@ function getBounds() {
   const height = rect?.height || 300;
   const spriteSize = getSpriteSize();
   const margin = Math.max(12, spriteSize * (stageIndex >= 3 ? 0.36 : 0.46));
-  const isFinalPhase = stageIndex === 5;
+  const isFinalPhase = stageIndex === PHASE_6_STAGE_INDEX;
 
   return {
     minX: margin,
