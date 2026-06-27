@@ -13,6 +13,21 @@ const soundscape = new Soundscape();
 let game;
 let petScene;
 
+const KEYBOARD_ACTIONS = {
+  Digit1: 'feed',
+  Numpad1: 'feed',
+  Digit2: 'care',
+  Numpad2: 'care',
+  Digit3: 'train',
+  Numpad3: 'train',
+  Digit4: 'rest',
+  Numpad4: 'rest',
+  Digit5: 'boost',
+  Numpad5: 'boost',
+  Digit6: 'repair',
+  Numpad6: 'repair'
+};
+
 window.__CYBERNEXO_ATTACH_SCENE__ = attachPetScene;
 
 bootstrap();
@@ -83,22 +98,59 @@ function bindEvents() {
     button.addEventListener('click', () => handleAction(button.dataset.action));
   });
 
-  document.querySelector('#pulse')?.addEventListener('click', async () => {
-    await ensureAudio();
-    syncSceneStage();
-    soundscape.playPulse();
-    pulseTrainingSprite('pulse');
-    petScene?.react('pulse');
-    logLine('◌ Pulso emitido. La señal resonó en el campo de entrenamiento.');
-  });
-
-  document.querySelector('#audio-toggle')?.addEventListener('click', async () => {
-    const enabled = await soundscape.toggle(stageIndex);
-    document.querySelector('#audio-toggle').textContent = enabled ? 'Silenciar audio' : 'Activar audio';
-  });
-
+  document.querySelector('#pulse')?.addEventListener('click', handlePulse);
+  document.querySelector('#audio-toggle')?.addEventListener('click', handleAudioToggle);
   document.querySelector('#reset-save')?.addEventListener('click', hardReset);
   document.querySelector('#new-run')?.addEventListener('click', hardReset);
+  window.addEventListener('keydown', handleKeyboardShortcut);
+}
+
+async function handlePulse() {
+  await ensureAudio();
+  syncSceneStage();
+  soundscape.playPulse();
+  pulseTrainingSprite('pulse');
+  petScene?.react('pulse');
+  logLine('◌ Pulso emitido. La señal resonó en el campo de entrenamiento.');
+}
+
+async function handleAudioToggle() {
+  const enabled = await soundscape.toggle(stageIndex);
+  document.querySelector('#audio-toggle').textContent = enabled ? 'Silenciar audio' : 'Activar audio';
+}
+
+function handleKeyboardShortcut(event) {
+  if (event.repeat || isTypingTarget(event.target)) return;
+
+  const action = KEYBOARD_ACTIONS[event.code];
+  if (action) {
+    event.preventDefault();
+    handleAction(action);
+    return;
+  }
+
+  if (event.code === 'Space' || event.code === 'KeyP') {
+    event.preventDefault();
+    handlePulse();
+    return;
+  }
+
+  if (event.code === 'KeyM') {
+    event.preventDefault();
+    handleAudioToggle();
+    return;
+  }
+
+  if (event.code === 'KeyR' && event.shiftKey) {
+    event.preventDefault();
+    hardReset();
+  }
+}
+
+function isTypingTarget(target) {
+  if (!target) return false;
+  const tagName = target.tagName?.toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target.isContentEditable;
 }
 
 async function handleAction(action) {
