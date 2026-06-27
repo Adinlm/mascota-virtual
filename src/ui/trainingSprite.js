@@ -1,6 +1,10 @@
 import { phaseImages } from '../assets/evolutionImages.js';
 import { phase1TrainingFrames } from '../assets/phase1TrainingFrames.js';
 import { phase2TrainingFrames } from '../assets/phase2TrainingFrames.js';
+import { phase3TrainingFrames } from '../assets/phase3TrainingFrames.js';
+import { phase4TrainingFrames } from '../assets/phase4TrainingFrames.js';
+import { phase5TrainingFrames } from '../assets/phase5TrainingFrames.js';
+import { phase6TrainingFrames } from '../assets/phase6TrainingFrames.js';
 import { EVOLUTIONS } from '../config/evolutions.js';
 
 let root;
@@ -30,18 +34,24 @@ let fallbackLocked = false;
 
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
-const COMBAT_STAGE_INDEX = 2;
 const SPRITE_FRAME_INTERVAL = 120;
+const FLOAT_FRAME_INTERVAL = 155;
 const FILL_COLOR = [224, 235, 248, 255];
+
+const TRAINING_FRAMES_BY_STAGE = [
+  phase1TrainingFrames,
+  phase2TrainingFrames,
+  phase3TrainingFrames,
+  phase4TrainingFrames,
+  phase5TrainingFrames,
+  phase6TrainingFrames
+];
 
 const ACTION_DURATIONS = {
   roam: 520,
   focus: 780,
   dash: 520,
-  strike: 620,
-  guard: 760,
-  combo: 860,
-  uppercut: 720
+  float: 960
 };
 
 export function initTrainingSprite(initialStageIndex = 0) {
@@ -92,7 +102,7 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   fallbackLocked = false;
   activeSpriteFrames = frameSet;
   spriteFrameIndex = 0;
-  nextSpriteFrameAt = performance.now() + SPRITE_FRAME_INTERVAL;
+  nextSpriteFrameAt = performance.now() + getFrameInterval(nextStage);
 
   stageIndex = nextStage;
   const phaseNumber = stageIndex + 1;
@@ -100,6 +110,7 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   overlay.dataset.trainingStage = String(phaseNumber);
   unit.dataset.stage = String(phaseNumber);
   unit.dataset.spriteMode = frameSet ? 'frames' : 'static';
+  unit.dataset.motion = stageIndex === 5 ? 'float' : 'roam';
   unit.style.setProperty('--stage-color', getStageColorCss());
   unit.style.setProperty('--training-intensity', String(0.75 + stageIndex * 0.12));
 
@@ -125,7 +136,7 @@ export function pulseTrainingSprite(action = 'pulse') {
   if (!unit) return;
   unit.classList.remove('training-react');
   unit.dataset.action = action;
-  unit.dataset.motion = action === 'repair' ? 'focus' : stageIndex >= COMBAT_STAGE_INDEX ? 'strike' : 'dash';
+  unit.dataset.motion = action === 'repair' ? 'focus' : stageIndex === 5 ? 'float' : 'dash';
   activeMotion = unit.dataset.motion;
   actionUntil = performance.now() + 430;
 
@@ -161,11 +172,11 @@ function getTrainingFramesForStage(nextStage) {
     return phase1TrainingFrames;
   }
 
-  if (nextStage === 1) {
-    return phase2TrainingFrames;
-  }
+  return TRAINING_FRAMES_BY_STAGE[nextStage] ?? null;
+}
 
-  return null;
+function getFrameInterval(nextStage = stageIndex) {
+  return nextStage === 5 ? FLOAT_FRAME_INTERVAL : SPRITE_FRAME_INTERVAL;
 }
 
 function prepareSolidPhase1Frames() {
@@ -318,7 +329,7 @@ function updateFrameAnimation(now) {
 
   spriteFrameIndex = (spriteFrameIndex + 1) % activeSpriteFrames.length;
   setSpriteFrame(activeSpriteFrames[spriteFrameIndex]);
-  nextSpriteFrameAt = now + SPRITE_FRAME_INTERVAL;
+  nextSpriteFrameAt = now + getFrameInterval();
 }
 
 function setSpriteFrame(src) {
@@ -365,27 +376,26 @@ function updateMovement(deltaSeconds, now) {
     return;
   }
 
-  const motionSpeed = activeMotion === 'dash' ? 2.05 : activeMotion === 'strike' ? 0.45 : 1;
-  const stageSpeed = SPEED + stageIndex * 7;
+  const isFinalPhase = stageIndex === 5;
+  const motionSpeed = activeMotion === 'dash' ? (isFinalPhase ? 0.85 : 2.05) : activeMotion === 'float' ? 0.62 : 1;
+  const stageSpeed = isFinalPhase ? SPEED * 0.6 : SPEED + stageIndex * 7;
   const step = Math.min(distance, stageSpeed * motionSpeed * deltaSeconds);
   position.x += (dx / distance) * step;
   position.y += (dy / distance) * step;
   velocityFlip = dx < 0 ? -1 : 1;
 
-  const bob = Math.sin(now / 340) * (stageIndex >= COMBAT_STAGE_INDEX ? 6 : 4);
-  const tilt = Math.sin(now / 520) * (stageIndex >= COMBAT_STAGE_INDEX ? 3.4 : 2.2);
-  const strikeNudge = activeMotion === 'strike' || activeMotion === 'combo'
-    ? Math.sin(now / 58) * 5
-    : 0;
-  const scale = activeMotion === 'guard' ? 0.96 : activeMotion === 'uppercut' ? 1.05 : 1;
+  const bobAmplitude = isFinalPhase ? 12 : 4 + stageIndex * 0.6;
+  const bob = Math.sin(now / (isFinalPhase ? 520 : 340)) * bobAmplitude;
+  const tilt = Math.sin(now / (isFinalPhase ? 740 : 520)) * (isFinalPhase ? 1.6 : 2.4);
+  const scale = isFinalPhase ? 1 + Math.sin(now / 860) * 0.025 : 1;
 
-  unit.style.transform = `translate3d(${position.x + strikeNudge}px, ${position.y + bob}px, 0) scale(${scale}) scaleX(${velocityFlip}) rotate(${tilt}deg)`;
+  unit.style.transform = `translate3d(${position.x}px, ${position.y + bob}px, 0) scale(${scale}) scaleX(${velocityFlip}) rotate(${tilt}deg)`;
 }
 
 function updateAmbientAction(now) {
-  if (activeMotion !== 'roam' && now > actionUntil) {
-    activeMotion = 'roam';
-    unit.dataset.motion = 'roam';
+  if (activeMotion !== 'roam' && activeMotion !== 'float' && now > actionUntil) {
+    activeMotion = stageIndex === 5 ? 'float' : 'roam';
+    unit.dataset.motion = activeMotion;
   }
 
   if (now < nextActionAt) return;
@@ -395,20 +405,22 @@ function updateAmbientAction(now) {
   unit.dataset.motion = nextMotion;
   actionUntil = now + ACTION_DURATIONS[nextMotion];
 
-  if (nextMotion !== 'roam') {
+  if (nextMotion !== 'roam' && nextMotion !== 'float') {
     spawnActionEffect(nextMotion);
+  } else if (nextMotion === 'float') {
+    spawnFocusPulse();
   }
 
   scheduleNextAction(ACTION_DURATIONS[nextMotion] + random(720, Math.max(1100, 2100 - stageIndex * 110)));
 }
 
 function pickMotion() {
-  if (stageIndex < COMBAT_STAGE_INDEX) {
-    return Math.random() < 0.68 ? 'roam' : Math.random() < 0.55 ? 'dash' : 'focus';
+  if (stageIndex === 5) {
+    const motions = ['float', 'float', 'focus', 'dash'];
+    return motions[Math.floor(Math.random() * motions.length)];
   }
 
-  const motions = ['dash', 'strike', 'guard', 'combo', 'uppercut', 'focus'];
-  return motions[Math.floor(Math.random() * motions.length)];
+  return Math.random() < 0.68 ? 'roam' : Math.random() < 0.55 ? 'dash' : 'focus';
 }
 
 function scheduleNextAction(delay = 1200) {
@@ -419,27 +431,15 @@ function spawnActionEffect(action) {
   if (!overlay || !unit) return;
 
   if (action === 'dash') {
-    pickTarget({ preferDummy: stageIndex >= COMBAT_STAGE_INDEX });
-    spawnSpeedLines(stageIndex >= COMBAT_STAGE_INDEX ? 8 : 4);
+    pickTarget();
+    spawnSpeedLines(stageIndex === 5 ? 5 : 4);
     return;
   }
 
-  if (action === 'focus' || action === 'guard') {
+  if (action === 'focus') {
     spawnFocusPulse();
-    spawnParticles(action === 'guard' ? 0xffd86b : getStageColor(), action === 'guard' ? 8 : 12);
-    return;
+    spawnParticles(getStageColor(), 12);
   }
-
-  const hitDelay = action === 'combo' ? 170 : action === 'uppercut' ? 210 : 130;
-  pickTarget({ preferDummy: true });
-
-  window.setTimeout(() => {
-    if (!overlay || activeMotion === 'roam') return;
-    const impactPoint = markRandomDummyHit(action) ?? getUnitCenter();
-    spawnImpact(impactPoint.x, impactPoint.y, action);
-    spawnSpeedLines(action === 'combo' ? 11 : 7);
-    spawnParticles(getStageColor(), action === 'combo' ? 18 : 12);
-  }, hitDelay);
 }
 
 function centerPosition() {
@@ -458,25 +458,13 @@ function clampPosition() {
   position.y = clamp(position.y, bounds.minY, bounds.maxY);
 }
 
-function pickTarget(options = {}) {
+function pickTarget() {
   const bounds = getBounds();
-  const dummyTarget = options.preferDummy || (stageIndex >= COMBAT_STAGE_INDEX && Math.random() < 0.52);
-
-  if (dummyTarget) {
-    const point = getRandomDummyCenter();
-    if (point) {
-      const spriteSize = getSpriteSize();
-      target = {
-        x: clamp(point.x - spriteSize / 2 + random(-28, 28), bounds.minX, bounds.maxX),
-        y: clamp(point.y - spriteSize / 2 + random(-18, 16), bounds.minY, bounds.maxY)
-      };
-      return;
-    }
-  }
+  const verticalBias = stageIndex === 5 ? 0.42 : 0;
 
   target = {
     x: random(bounds.minX, bounds.maxX),
-    y: random(bounds.minY, bounds.maxY)
+    y: random(bounds.minY, bounds.maxY - verticalBias * (bounds.maxY - bounds.minY))
   };
 }
 
@@ -485,13 +473,14 @@ function getBounds() {
   const width = rect?.width || 320;
   const height = rect?.height || 300;
   const spriteSize = getSpriteSize();
-  const margin = Math.max(16, spriteSize * 0.55);
+  const margin = Math.max(12, spriteSize * (stageIndex >= 3 ? 0.36 : 0.46));
+  const isFinalPhase = stageIndex === 5;
 
   return {
     minX: margin,
     maxX: Math.max(margin, width - spriteSize - margin),
-    minY: Math.max(margin, height * 0.18),
-    maxY: Math.max(margin, height * 0.78)
+    minY: Math.max(margin, height * (isFinalPhase ? 0.08 : 0.16)),
+    maxY: Math.max(margin, height * (isFinalPhase ? 0.62 : 0.76))
   };
 }
 
@@ -519,16 +508,6 @@ function spawnFocusPulse() {
   pulse.style.setProperty('--stage-color', getStageColorCss());
   frontLayer.appendChild(pulse);
   window.setTimeout(() => pulse.remove(), 820);
-}
-
-function spawnImpact(x, y, action = 'strike') {
-  const impact = document.createElement('span');
-  impact.className = `training-impact training-impact--${action}`;
-  impact.style.left = `${x}px`;
-  impact.style.top = `${y}px`;
-  impact.style.setProperty('--stage-color', getStageColorCss());
-  frontLayer.appendChild(impact);
-  window.setTimeout(() => impact.remove(), 620);
 }
 
 function spawnSpeedLines(amount = 6) {
@@ -569,47 +548,10 @@ function spawnParticles(color = 0x7cf7ff, amount = 14) {
   }
 }
 
-function markRandomDummyHit(action) {
-  const dummy = getRandomDummy();
-  if (!dummy) return null;
-
-  dummy.dataset.hit = action;
-  dummy.classList.remove('is-hit');
-  void dummy.offsetWidth;
-  dummy.classList.add('is-hit');
-
-  window.setTimeout(() => {
-    dummy.classList.remove('is-hit');
-  }, 420);
-
-  return getElementCenter(dummy);
-}
-
-function getRandomDummyCenter() {
-  const dummy = getRandomDummy();
-  return dummy ? getElementCenter(dummy) : null;
-}
-
-function getRandomDummy() {
-  const available = dummies.filter((dummy) => dummy.isConnected);
-  if (!available.length) return null;
-  return available[Math.floor(Math.random() * available.length)];
-}
-
 function getUnitCenter() {
   return {
     x: position.x + getSpriteSize() / 2,
     y: position.y + getSpriteSize() / 2
-  };
-}
-
-function getElementCenter(element) {
-  const rect = element.getBoundingClientRect();
-  const overlayRect = overlay.getBoundingClientRect();
-
-  return {
-    x: rect.left - overlayRect.left + rect.width / 2,
-    y: rect.top - overlayRect.top + rect.height / 2
   };
 }
 
