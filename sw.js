@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cybernexo-prisma-pwa-v23';
+const CACHE_NAME = 'cybernexo-prisma-pwa-v24';
 
 const CORE_ASSETS = [
   './',
