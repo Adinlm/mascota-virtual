@@ -27,6 +27,7 @@ let actionUntil = 0;
 let nextActionAt = 0;
 let activeSpriteFrames = null;
 let spriteFrameIndex = 0;
+let spriteFrameDirection = 1;
 let nextSpriteFrameAt = 0;
 let solidPhase1Frames = null;
 let solidPhase1Promise = null;
@@ -37,10 +38,18 @@ const repairedFramePromises = new Map();
 
 const SPEED = 54;
 const TARGET_REACHED_DISTANCE = 8;
-const SPRITE_FRAME_INTERVAL = 120;
-const FLOAT_FRAME_INTERVAL = 155;
 const FILL_COLOR = [224, 235, 248, 255];
 const PHASE_6_STAGE_INDEX = 5;
+const END_FRAME_HOLD_MULTIPLIER = 1.6;
+
+const FRAME_INTERVAL_BY_STAGE = [
+  190,
+  220,
+  250,
+  300,
+  340,
+  460
+];
 
 const TRAINING_FRAMES_BY_STAGE = [
   phase1TrainingFrames,
@@ -108,6 +117,7 @@ export function setTrainingStage(nextStageIndex, options = {}) {
   fallbackLocked = false;
   activeSpriteFrames = waitingForCleanFrames ? null : frameSet;
   spriteFrameIndex = 0;
+  spriteFrameDirection = 1;
   nextSpriteFrameAt = performance.now() + getFrameInterval(nextStage);
 
   stageIndex = nextStage;
@@ -199,7 +209,13 @@ function needsRuntimeBackgroundRepair(nextStage) {
 }
 
 function getFrameInterval(nextStage = stageIndex) {
-  return nextStage === PHASE_6_STAGE_INDEX ? FLOAT_FRAME_INTERVAL : SPRITE_FRAME_INTERVAL;
+  return FRAME_INTERVAL_BY_STAGE[nextStage] ?? 240;
+}
+
+function getCurrentFrameHold() {
+  const baseInterval = getFrameInterval();
+  const isEndpoint = spriteFrameIndex === 0 || spriteFrameIndex === activeSpriteFrames.length - 1;
+  return isEndpoint ? baseInterval * END_FRAME_HOLD_MULTIPLIER : baseInterval;
 }
 
 function schedulePhase6FrameRepair() {
@@ -221,6 +237,7 @@ function prepareSolidPhase1Frames() {
       if (stageIndex === 0 && unit && image) {
         activeSpriteFrames = solidPhase1Frames;
         spriteFrameIndex = 0;
+        spriteFrameDirection = 1;
         setSpriteFrame(solidPhase1Frames[0]);
         preloadSpriteFrames(solidPhase1Frames);
       }
@@ -242,6 +259,7 @@ function prepareTransparentStageFrames(targetStage, frames) {
       if (stageIndex === targetStage && unit && image) {
         activeSpriteFrames = transparentFrames;
         spriteFrameIndex = 0;
+        spriteFrameDirection = 1;
         nextSpriteFrameAt = performance.now() + getFrameInterval(targetStage);
         unit.dataset.spriteLoading = 'false';
         unit.dataset.spriteMode = 'frames';
@@ -471,9 +489,16 @@ function loop(now) {
 function updateFrameAnimation(now) {
   if (!activeSpriteFrames || activeSpriteFrames.length < 2 || now < nextSpriteFrameAt) return;
 
-  spriteFrameIndex = (spriteFrameIndex + 1) % activeSpriteFrames.length;
+  const nextIndex = spriteFrameIndex + spriteFrameDirection;
+  if (nextIndex >= activeSpriteFrames.length || nextIndex < 0) {
+    spriteFrameDirection *= -1;
+    spriteFrameIndex += spriteFrameDirection;
+  } else {
+    spriteFrameIndex = nextIndex;
+  }
+
   setSpriteFrame(activeSpriteFrames[spriteFrameIndex]);
-  nextSpriteFrameAt = now + getFrameInterval();
+  nextSpriteFrameAt = now + getCurrentFrameHold();
 }
 
 function setSpriteFrame(src) {
